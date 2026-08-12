@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
 namespace BoltSnip
@@ -57,21 +56,20 @@ namespace BoltSnip
 
         internal static Bitmap Crop(Bitmap source, Rectangle rectangle)
         {
-            Bitmap result = new Bitmap(rectangle.Width, rectangle.Height, PixelFormat.Format32bppPArgb);
-            using (Graphics graphics = Graphics.FromImage(result))
+            if (source == null)
             {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighSpeed;
-                graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-                graphics.PixelOffsetMode = PixelOffsetMode.Half;
-                graphics.DrawImage(
-                    source,
-                    new Rectangle(0, 0, result.Width, result.Height),
-                    rectangle,
-                    GraphicsUnit.Pixel);
+                throw new ArgumentNullException("source");
             }
 
-            return result;
+            Rectangle bounds = new Rectangle(0, 0, source.Width, source.Height);
+            if (rectangle.Width <= 0 || rectangle.Height <= 0 || !bounds.Contains(rectangle))
+            {
+                throw new ArgumentOutOfRangeException("rectangle");
+            }
+
+            // Clone copies the requested pixels directly. Keeping this path free of Graphics.DrawImage
+            // avoids a second rendering pass and guarantees a 1:1 physical-pixel crop.
+            return source.Clone(rectangle, PixelFormat.Format32bppPArgb);
         }
     }
 }
