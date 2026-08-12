@@ -21,9 +21,22 @@ namespace BoltSnip
         private AppSettings()
         {
             Hotkey = HotkeyGesture.Default;
+            SaveDirectory = DefaultSaveDirectory;
         }
 
         internal HotkeyGesture Hotkey { get; set; }
+
+        internal string SaveDirectory { get; set; }
+
+        internal static string DefaultSaveDirectory
+        {
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+                    "BoltSnip");
+            }
+        }
 
         internal static AppSettings Load()
         {
@@ -67,6 +80,13 @@ namespace BoltSnip
                     }
                 }
 
+                string saveDirectory;
+                if (values.TryGetValue("SaveDirectory", out saveDirectory) &&
+                    IsUsableSaveDirectory(saveDirectory))
+                {
+                    settings.SaveDirectory = saveDirectory;
+                }
+
                 if (string.Equals(path, LegacySettingsPath, StringComparison.OrdinalIgnoreCase))
                 {
                     settings.Save();
@@ -83,10 +103,23 @@ namespace BoltSnip
         internal void Save()
         {
             Directory.CreateDirectory(SettingsDirectory);
+            string saveDirectory = IsUsableSaveDirectory(SaveDirectory)
+                ? SaveDirectory
+                : DefaultSaveDirectory;
             string contents =
                 "Modifiers=" + Hotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
-                "Key=" + ((int)Hotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
+                "Key=" + ((int)Hotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                "SaveDirectory=" + saveDirectory + Environment.NewLine;
             File.WriteAllText(SettingsPath, contents);
+        }
+
+        private static bool IsUsableSaveDirectory(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) &&
+                Path.IsPathRooted(path) &&
+                path.IndexOfAny(Path.GetInvalidPathChars()) < 0 &&
+                path.IndexOf('\r') < 0 &&
+                path.IndexOf('\n') < 0;
         }
     }
 }

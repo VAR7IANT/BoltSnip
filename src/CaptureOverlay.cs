@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -42,6 +43,7 @@ namespace BoltSnip
         private readonly Font _utilityFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
         private readonly Font _toolbarFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
         private readonly Timer _windowTrackingTimer;
+        private readonly Func<string> _saveDirectoryProvider;
 
         private Bitmap _screen;
         private Rectangle _virtualScreen;
@@ -58,9 +60,21 @@ namespace BoltSnip
         private bool _hasTrackedCursor;
         private Point _magnifierPoint;
         private bool _hasMagnifierPoint;
+        private bool _showSelectionMagnifier;
 
         internal CaptureOverlay()
+            : this(delegate { return AppSettings.DefaultSaveDirectory; })
         {
+        }
+
+        internal CaptureOverlay(Func<string> saveDirectoryProvider)
+        {
+            if (saveDirectoryProvider == null)
+            {
+                throw new ArgumentNullException("saveDirectoryProvider");
+            }
+
+            _saveDirectoryProvider = saveDirectoryProvider;
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
@@ -176,7 +190,8 @@ namespace BoltSnip
                 DrawSelectionChrome(graphics, active);
             }
 
-            if (_captureActive && !_hasSelection && _hasMagnifierPoint)
+            if (_captureActive && _hasMagnifierPoint &&
+                (!_hasSelection || _showSelectionMagnifier))
             {
                 DrawMagnifier(graphics, _magnifierPoint);
             }
@@ -221,7 +236,9 @@ namespace BoltSnip
             ToolbarAction completionAction = GetSelectionClickAction(e.Button, e.Location);
             if (completionAction != ToolbarAction.None)
             {
-                PerformToolbarAction(completionAction);
+                PerformToolbarAction(
+                    completionAction,
+                    ShouldPromptSave(e.Button, ModifierKeys));
                 return;
             }
 
@@ -276,6 +293,14 @@ namespace BoltSnip
 
             if (_hasSelection)
             {
+                if (_showSelectionMagnifier)
+                {
+                    Rectangle oldMagnifier = GetMagnifierBounds(_magnifierPoint);
+                    oldMagnifier.Inflate(2, 2);
+                    _showSelectionMagnifier = false;
+                    Invalidate(oldMagnifier);
+                }
+
                 ToolbarAction oldAction = _hoverAction;
                 _hoverAction = HitTestToolbar(e.Location);
                 Cursor = _hoverAction == ToolbarAction.None ? Cursors.Cross : Cursors.Hand;
@@ -378,8 +403,14 @@ namespace BoltSnip
             }
             else if (e.Control && e.KeyCode == Keys.S)
             {
-                SaveSelection();
+                SaveSelection(true);
                 e.Handled = true;
+            }
+            else if (IsArrowKey(e.KeyCode))
+            {
+                AdjustSelectionWithKeyboard(e.KeyCode, e.Shift);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
             }
         }
 
@@ -532,9 +563,33 @@ namespace BoltSnip
                 return;
             }
 
+            Rectangle[] dirtyRectangles = GetMagnifierInvalidationRectangles(oldBounds, newBounds);
+            for (int i = 0; i < dirtyRectangles.Length; i++)
+            {
+                Invalidate(dirtyRectangles[i]);
+            }
+        }
+
+        private static Rectangle[] GetMagnifierInvalidationRectangles(
+            Rectangle oldBounds,
+            Rectangle newBounds)
+        {
+            if (oldBounds.IsEmpty)
+            {
+                newBounds.Inflate(2, 2);
+                return new[] { newBounds };
+            }
+
             oldBounds.Inflate(2, 2);
             newBounds.Inflate(2, 2);
-            Invalidate(Rectangle.Union(oldBounds, newBounds));
+            if (oldBounds == newBounds)
+            {
+                return new[] { newBounds };
+            }
+
+            // Keep the two repaint areas separate. A union would redraw the full strip between
+            // the old and new cursor positions during fast movement on large displays.
+            return new[] { oldBounds, newBounds };
         }
 
         private Rectangle GetMagnifierBounds(Point point)
@@ -556,7 +611,33 @@ namespace BoltSnip
 
             x = Math.Max(6, Math.Min(ClientSize.Width - width - 6, x));
             y = Math.Max(6, Math.Min(ClientSize.Height - height - 6, y));
-            return new Rectangle(x, y, width, height);
+            Rectangle result = new Rectangle(x, y, width, height);
+            if (_hasSelection)
+            {
+                Rectangle toolbar = GetToolbarBounds(_selection);
+                if (result.IntersectsWith(toolbar))
+                {
+                    Rectangle[] alternatives =
+                    {
+                        new Rectangle(x, toolbar.Bottom + 9, width, height),
+                        new Rectangle(x, toolbar.Top - height - 9, width, height),
+                        new Rectangle(toolbar.Left - width - 9, y, width, height),
+                        new Rectangle(toolbar.Right + 9, y, width, height)
+                    };
+
+                    for (int i = 0; i < alternatives.Length; i++)
+                    {
+                        if (ClientRectangle.Contains(alternatives[i]) &&
+                            !alternatives[i].IntersectsWith(toolbar))
+                        {
+                            result = alternatives[i];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
 
         private static Rectangle GetMagnifierSampleRectangle(Point point)
@@ -577,7 +658,7 @@ namespace BoltSnip
             }
 
             DrawToolbarButton(graphics, ToolbarAction.Copy, "复制 · 左键", 0);
-            DrawToolbarButton(graphics, ToolbarAction.Save, "保存 · 右键", 1);
+            DrawToolbarButton(graphics, ToolbarAction.Save, "快存 · 右键", 1);
             DrawToolbarButton(graphics, ToolbarAction.Cancel, "取消", 2);
         }
 
@@ -665,11 +746,16 @@ namespace BoltSnip
                 : toolbarAction;
         }
 
-        private void PerformToolbarAction(ToolbarAction action)
+        private void PerformToolbarAction(ToolbarAction action, bool promptForSave)
         {
             if (action == ToolbarAction.Copy) CopySelection();
-            else if (action == ToolbarAction.Save) SaveSelection();
+            else if (action == ToolbarAction.Save) SaveSelection(promptForSave);
             else if (action == ToolbarAction.Cancel) Finish(false, "已取消");
+        }
+
+        private static bool ShouldPromptSave(MouseButtons button, Keys modifierKeys)
+        {
+            return button == MouseButtons.Right && (modifierKeys & Keys.Shift) == Keys.Shift;
         }
 
         private void CopySelection()
@@ -693,7 +779,7 @@ namespace BoltSnip
             }
         }
 
-        private void SaveSelection()
+        private void SaveSelection(bool promptForPath)
         {
             if (!_hasSelection || _screen == null)
             {
@@ -702,23 +788,36 @@ namespace BoltSnip
 
             try
             {
-                using (SaveFileDialog dialog = new SaveFileDialog())
+                string path;
+                string saveDirectory = GetSaveDirectory();
+                if (promptForPath)
                 {
-                    dialog.Title = "保存截图";
-                    dialog.Filter = "PNG 图像 (*.png)|*.png|JPEG 图像 (*.jpg)|*.jpg";
-                    dialog.DefaultExt = "png";
-                    dialog.AddExtension = true;
-                    dialog.FileName = "截图_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png";
-
-                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                    using (SaveFileDialog dialog = new SaveFileDialog())
                     {
-                        return;
-                    }
+                        dialog.Title = "保存截图";
+                        dialog.Filter = "PNG 图像 (*.png)|*.png|JPEG 图像 (*.jpg)|*.jpg";
+                        dialog.DefaultExt = "png";
+                        dialog.AddExtension = true;
+                        dialog.InitialDirectory = saveDirectory;
+                        dialog.FileName = "截图_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png";
 
-                    using (Bitmap cropped = ScreenCapture.Crop(_screen, _selection))
-                    {
-                        SaveImage(cropped, dialog.FileName);
+                        if (dialog.ShowDialog(this) != DialogResult.OK)
+                        {
+                            return;
+                        }
+
+                        path = dialog.FileName;
                     }
+                }
+                else
+                {
+                    Directory.CreateDirectory(saveDirectory);
+                    path = BuildUniqueSavePath(saveDirectory, DateTime.Now);
+                }
+
+                using (Bitmap cropped = ScreenCapture.Crop(_screen, _selection))
+                {
+                    SaveImage(cropped, path);
                 }
 
                 Finish(true, "截图已保存");
@@ -727,6 +826,107 @@ namespace BoltSnip
             {
                 MessageBox.Show(this, exception.Message, "保存失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private string GetSaveDirectory()
+        {
+            string directory = _saveDirectoryProvider();
+            if (string.IsNullOrWhiteSpace(directory) || !Path.IsPathRooted(directory))
+            {
+                return AppSettings.DefaultSaveDirectory;
+            }
+
+            return directory;
+        }
+
+        private static string BuildUniqueSavePath(string directory, DateTime timestamp)
+        {
+            string baseName = "截图_" + timestamp.ToString("yyyyMMdd_HHmmss_fff");
+            string path = Path.Combine(directory, baseName + ".png");
+            int suffix = 2;
+            while (File.Exists(path))
+            {
+                path = Path.Combine(directory, baseName + "_" + suffix + ".png");
+                suffix++;
+            }
+
+            return path;
+        }
+
+        private void AdjustSelectionWithKeyboard(Keys keyCode, bool resize)
+        {
+            Rectangle oldSelection = _selection;
+            Rectangle oldMagnifier = _showSelectionMagnifier
+                ? GetMagnifierBounds(_magnifierPoint)
+                : Rectangle.Empty;
+            Rectangle adjusted = AdjustSelection(
+                _selection,
+                keyCode,
+                resize,
+                ClientRectangle);
+            if (adjusted == _selection)
+            {
+                return;
+            }
+
+            _selection = adjusted;
+            _magnifierPoint = new Point(_selection.Right - 1, _selection.Bottom - 1);
+            _hasMagnifierPoint = true;
+            _showSelectionMagnifier = true;
+
+            InvalidateSelectionTransition(oldSelection, _selection, true);
+            if (!oldMagnifier.IsEmpty)
+            {
+                oldMagnifier.Inflate(2, 2);
+                Invalidate(oldMagnifier);
+            }
+
+            Rectangle newMagnifier = GetMagnifierBounds(_magnifierPoint);
+            newMagnifier.Inflate(2, 2);
+            Invalidate(newMagnifier);
+        }
+
+        private static Rectangle AdjustSelection(
+            Rectangle selection,
+            Keys keyCode,
+            bool resize,
+            Rectangle bounds)
+        {
+            if (!resize)
+            {
+                int deltaX = keyCode == Keys.Left ? -1 : keyCode == Keys.Right ? 1 : 0;
+                int deltaY = keyCode == Keys.Up ? -1 : keyCode == Keys.Down ? 1 : 0;
+                int x = Math.Max(bounds.Left, Math.Min(bounds.Right - selection.Width, selection.X + deltaX));
+                int y = Math.Max(bounds.Top, Math.Min(bounds.Bottom - selection.Height, selection.Y + deltaY));
+                return new Rectangle(x, y, selection.Width, selection.Height);
+            }
+
+            int width = selection.Width;
+            int height = selection.Height;
+            if (keyCode == Keys.Left)
+            {
+                width = Math.Max(2, width - 1);
+            }
+            else if (keyCode == Keys.Right)
+            {
+                width = Math.Min(bounds.Right - selection.Left, width + 1);
+            }
+            else if (keyCode == Keys.Up)
+            {
+                height = Math.Max(2, height - 1);
+            }
+            else if (keyCode == Keys.Down)
+            {
+                height = Math.Min(bounds.Bottom - selection.Top, height + 1);
+            }
+
+            return new Rectangle(selection.X, selection.Y, width, height);
+        }
+
+        private static bool IsArrowKey(Keys keyCode)
+        {
+            return keyCode == Keys.Left || keyCode == Keys.Right ||
+                keyCode == Keys.Up || keyCode == Keys.Down;
         }
 
         private static void SaveImage(Bitmap image, string path)
@@ -827,6 +1027,7 @@ namespace BoltSnip
             _hoverAction = ToolbarAction.None;
             _hasTrackedCursor = false;
             _hasMagnifierPoint = false;
+            _showSelectionMagnifier = false;
             Cursor = Cursors.Cross;
         }
 

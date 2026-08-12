@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace BoltSnip
@@ -16,9 +17,9 @@ namespace BoltSnip
 
         internal TrayApplicationContext()
         {
-            _overlay = new CaptureOverlay();
-            _overlay.CaptureFinished += OverlayCaptureFinished;
             _settings = AppSettings.Load();
+            _overlay = new CaptureOverlay(delegate { return _settings.SaveDirectory; });
+            _overlay.CaptureFinished += OverlayCaptureFinished;
             _hotkey = new HotkeyWindow(BeginCapture, _settings.Hotkey);
 
             ContextMenuStrip menu = new ContextMenuStrip();
@@ -29,6 +30,9 @@ namespace BoltSnip
             ToolStripMenuItem hotkeySettings = new ToolStripMenuItem("设置快捷键…");
             hotkeySettings.Click += delegate { OpenHotkeySettings(); };
             menu.Items.Add(hotkeySettings);
+            ToolStripMenuItem saveDirectorySettings = new ToolStripMenuItem("设置保存目录…");
+            saveDirectorySettings.Click += delegate { OpenSaveDirectorySettings(); };
+            menu.Items.Add(saveDirectorySettings);
             menu.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit = new ToolStripMenuItem("退出 BoltSnip");
             exit.Click += delegate { ExitApplication(); };
@@ -109,6 +113,44 @@ namespace BoltSnip
                     }
                 }
                 UpdateShortcutLabels();
+            }
+        }
+
+        private void OpenSaveDirectorySettings()
+        {
+            if (_overlay.IsCapturing)
+            {
+                return;
+            }
+
+            using (FolderBrowserDialog dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = "选择右键快速保存截图的目录";
+                dialog.ShowNewFolderButton = true;
+                dialog.SelectedPath = Directory.Exists(_settings.SaveDirectory)
+                    ? _settings.SaveDirectory
+                    : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+
+                if (dialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string previousDirectory = _settings.SaveDirectory;
+                _settings.SaveDirectory = dialog.SelectedPath;
+                try
+                {
+                    _settings.Save();
+                }
+                catch (Exception exception)
+                {
+                    _settings.SaveDirectory = previousDirectory;
+                    MessageBox.Show(
+                        "无法保存目录设置：" + exception.Message,
+                        "设置失败",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
             }
         }
 
