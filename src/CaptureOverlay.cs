@@ -10,6 +10,9 @@ namespace BoltSnip
 {
     internal sealed class CaptureOverlay : Form
     {
+        private const int WindowMagnetRadius = 8;
+        private const int WindowTrackingIntervalMilliseconds = 8;
+
         private enum ToolbarAction
         {
             None,
@@ -26,6 +29,7 @@ namespace BoltSnip
         private readonly Pen _borderPen = new Pen(Color.FromArgb(255, 52, 190, 208), 1f);
         private readonly Font _utilityFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
         private readonly Font _toolbarFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
+        private readonly Timer _windowTrackingTimer;
 
         private Bitmap _screen;
         private Rectangle _virtualScreen;
@@ -38,6 +42,8 @@ namespace BoltSnip
         private bool _hasSelection;
         private ToolbarAction _hoverAction;
         private bool _captureActive;
+        private Point _lastTrackedCursor;
+        private bool _hasTrackedCursor;
 
         internal CaptureOverlay()
         {
@@ -50,6 +56,10 @@ namespace BoltSnip
             BackColor = Color.Black;
             Cursor = Cursors.Cross;
             Text = "BoltSnip.Overlay";
+
+            _windowTrackingTimer = new Timer();
+            _windowTrackingTimer.Interval = WindowTrackingIntervalMilliseconds;
+            _windowTrackingTimer.Tick += WindowTrackingTimerTick;
 
             SetStyle(
                 ControlStyles.UserPaint |
@@ -108,6 +118,7 @@ namespace BoltSnip
             NativeMethods.SetForegroundWindow(Handle);
             Activate();
             Focus();
+            _windowTrackingTimer.Start();
             Invalidate();
         }
 
@@ -163,6 +174,7 @@ namespace BoltSnip
                 _borderPen.Dispose();
                 _utilityFont.Dispose();
                 _toolbarFont.Dispose();
+                _windowTrackingTimer.Dispose();
             }
 
             base.Dispose(disposing);
@@ -265,8 +277,33 @@ namespace BoltSnip
                 return;
             }
 
+            TrackWindowAt(e.Location);
+        }
+
+        private void WindowTrackingTimerTick(object sender, EventArgs e)
+        {
+            if (!_captureActive || _mouseDown || _hasSelection)
+            {
+                return;
+            }
+
+            Point location = PointToClient(Cursor.Position);
+            if (!ClientRectangle.Contains(location) ||
+                (_hasTrackedCursor && location == _lastTrackedCursor))
+            {
+                return;
+            }
+
+            TrackWindowAt(location);
+        }
+
+        private void TrackWindowAt(Point location)
+        {
+            _lastTrackedCursor = location;
+            _hasTrackedCursor = true;
+
             Rectangle oldHover = _hoverRectangle;
-            _hoverRectangle = FindWindowAt(e.Location);
+            _hoverRectangle = FindWindowAt(location);
             if (oldHover != _hoverRectangle)
             {
                 InvalidateSelectionTransition(oldHover, _hoverRectangle, false);
@@ -524,6 +561,18 @@ namespace BoltSnip
                 }
             }
 
+            // Keep window snapping responsive around thin borders and shadows. Exact hits are
+            // always preferred, then the topmost window within a small magnetic edge radius.
+            for (int i = 0; i < _windowRectangles.Count; i++)
+            {
+                Rectangle magneticBounds = _windowRectangles[i];
+                magneticBounds.Inflate(WindowMagnetRadius, WindowMagnetRadius);
+                if (magneticBounds.Contains(point))
+                {
+                    return _windowRectangles[i];
+                }
+            }
+
             Screen monitor = Screen.FromPoint(PointToScreen(point));
             Rectangle bounds = monitor.Bounds;
             return new Rectangle(
@@ -541,6 +590,7 @@ namespace BoltSnip
             }
 
             _captureActive = false;
+            _windowTrackingTimer.Stop();
             Capture = false;
             Hide();
             DisposeCapturedScreen();
@@ -561,6 +611,7 @@ namespace BoltSnip
             _dragging = false;
             _hasSelection = false;
             _hoverAction = ToolbarAction.None;
+            _hasTrackedCursor = false;
             Cursor = Cursors.Cross;
         }
 

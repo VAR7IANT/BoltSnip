@@ -9,6 +9,7 @@ BoltSnip 是一款追求“按下快捷键，马上拿到截图”的 Windows �
 - 全局快捷键快速唤起，默认 `Alt+A`
 - 多显示器与 Per-Monitor V2 高 DPI 支持
 - 鼠标悬停自动吸附窗口
+- 8 ms 高频窗口跟踪与 8 px 边缘磁吸，快速移动时也能及时切换
 - 自由拖动框选，局部重绘减少卡顿
 - `Enter` / `Ctrl+C` 直接复制到剪贴板
 - `Ctrl+S` 保存 PNG 或 JPEG
