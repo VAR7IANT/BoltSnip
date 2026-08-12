@@ -44,6 +44,8 @@ namespace BoltSnip
 
     internal sealed class BoltSnipMenuRenderer : ToolStripProfessionalRenderer
     {
+        private const int CheckOpticalLift = 3;
+
         internal BoltSnipMenuRenderer()
             : base(new BoltSnipColorTable())
         {
@@ -84,7 +86,13 @@ namespace BoltSnip
 
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {
-            Rectangle box = new Rectangle(10, (e.Item.Height - 16) / 2, 16, 16);
+            // Font glyphs sit above the geometric center because WinForms lays text out on a
+            // baseline. Lift the check mark to share the same visible center as the glyphs.
+            Rectangle box = new Rectangle(
+                10,
+                ((e.Item.Height - 16) / 2) - CheckOpticalLift,
+                16,
+                16);
             SmoothingMode previous = e.Graphics.SmoothingMode;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (Brush background = new SolidBrush(BoltSnipMenuStyle.AccentColor))
