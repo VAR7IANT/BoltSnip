@@ -10,10 +10,13 @@ namespace BoltSnip
         private readonly CaptureOverlay _overlay;
         private readonly HotkeyWindow _hotkey;
         private readonly NotifyIcon _trayIcon;
+        private readonly ContextMenuStrip _trayMenu;
         private readonly ToolStripMenuItem _captureMenuItem;
         private readonly ToolStripMenuItem _startupMenuItem;
         private readonly AppSettings _settings;
         private readonly Icon _applicationIcon;
+        private readonly Font _menuFont;
+        private readonly Font _menuBoldFont;
         private bool _exiting;
 
         internal TrayApplicationContext()
@@ -23,31 +26,41 @@ namespace BoltSnip
             _overlay.CaptureFinished += OverlayCaptureFinished;
             _hotkey = new HotkeyWindow(BeginCapture, _settings.Hotkey);
 
-            ContextMenuStrip menu = new ContextMenuStrip();
+            _menuFont = new Font("Microsoft YaHei UI", 9.25f, FontStyle.Regular, GraphicsUnit.Point);
+            _menuBoldFont = new Font(_menuFont, FontStyle.Bold);
+            _trayMenu = new ContextMenuStrip();
+            BoltSnipMenuStyle.Apply(_trayMenu, _menuFont);
             _captureMenuItem = new ToolStripMenuItem();
-            _captureMenuItem.Font = new Font(_captureMenuItem.Font, FontStyle.Bold);
+            _captureMenuItem.Font = _menuBoldFont;
             _captureMenuItem.Click += delegate { BeginCapture(); };
-            menu.Items.Add(_captureMenuItem);
+            BoltSnipMenuStyle.ApplyItem(_captureMenuItem);
+            _trayMenu.Items.Add(_captureMenuItem);
             ToolStripMenuItem hotkeySettings = new ToolStripMenuItem("设置快捷键…");
             hotkeySettings.Click += delegate { OpenHotkeySettings(); };
-            menu.Items.Add(hotkeySettings);
+            BoltSnipMenuStyle.ApplyItem(hotkeySettings);
+            _trayMenu.Items.Add(hotkeySettings);
             ToolStripMenuItem saveDirectorySettings = new ToolStripMenuItem("设置保存目录…");
             saveDirectorySettings.Click += delegate { OpenSaveDirectorySettings(); };
-            menu.Items.Add(saveDirectorySettings);
+            BoltSnipMenuStyle.ApplyItem(saveDirectorySettings);
+            _trayMenu.Items.Add(saveDirectorySettings);
             _startupMenuItem = new ToolStripMenuItem("开机启动");
             _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
             _startupMenuItem.Click += delegate { ToggleStartup(); };
-            menu.Items.Add(_startupMenuItem);
-            menu.Items.Add(new ToolStripSeparator());
+            BoltSnipMenuStyle.ApplyItem(_startupMenuItem);
+            _trayMenu.Items.Add(_startupMenuItem);
+            ToolStripSeparator separator = new ToolStripSeparator();
+            BoltSnipMenuStyle.ApplySeparator(separator);
+            _trayMenu.Items.Add(separator);
             ToolStripMenuItem exit = new ToolStripMenuItem("退出 BoltSnip");
             exit.Click += delegate { ExitApplication(); };
-            menu.Items.Add(exit);
+            BoltSnipMenuStyle.ApplyItem(exit);
+            _trayMenu.Items.Add(exit);
 
             _trayIcon = new NotifyIcon();
             _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             _trayIcon.Icon = _applicationIcon ?? SystemIcons.Application;
             _trayIcon.Text = "BoltSnip · " + _hotkey.ShortcutText;
-            _trayIcon.ContextMenuStrip = menu;
+            _trayIcon.ContextMenuStrip = _trayMenu;
             _trayIcon.Visible = true;
             _trayIcon.DoubleClick += delegate { BeginCapture(); };
 
@@ -180,7 +193,8 @@ namespace BoltSnip
 
         private void UpdateShortcutLabels()
         {
-            _captureMenuItem.Text = "截图    " + _hotkey.ShortcutText;
+            _captureMenuItem.Text = "开始截图";
+            _captureMenuItem.ShortcutKeyDisplayString = _hotkey.ShortcutText;
             _trayIcon.Text = "BoltSnip · " + _hotkey.ShortcutText;
         }
 
@@ -212,7 +226,11 @@ namespace BoltSnip
             _trayIcon.Visible = false;
             _hotkey.Dispose();
             _overlay.Dispose();
+            _trayIcon.ContextMenuStrip = null;
             _trayIcon.Dispose();
+            _trayMenu.Dispose();
+            _menuBoldFont.Dispose();
+            _menuFont.Dispose();
             if (_applicationIcon != null)
             {
                 _applicationIcon.Dispose();
