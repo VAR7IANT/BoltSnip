@@ -11,6 +11,7 @@ namespace BoltSnip
         private readonly HotkeyWindow _hotkey;
         private readonly NotifyIcon _trayIcon;
         private readonly ToolStripMenuItem _captureMenuItem;
+        private readonly ToolStripMenuItem _startupMenuItem;
         private readonly AppSettings _settings;
         private readonly Icon _applicationIcon;
         private bool _exiting;
@@ -33,6 +34,10 @@ namespace BoltSnip
             ToolStripMenuItem saveDirectorySettings = new ToolStripMenuItem("设置保存目录…");
             saveDirectorySettings.Click += delegate { OpenSaveDirectorySettings(); };
             menu.Items.Add(saveDirectorySettings);
+            _startupMenuItem = new ToolStripMenuItem("开机启动");
+            _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
+            _startupMenuItem.Click += delegate { ToggleStartup(); };
+            menu.Items.Add(_startupMenuItem);
             menu.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit = new ToolStripMenuItem("退出 BoltSnip");
             exit.Click += delegate { ExitApplication(); };
@@ -151,6 +156,25 @@ namespace BoltSnip
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
+            }
+        }
+
+        private void ToggleStartup()
+        {
+            bool enable = !_startupMenuItem.Checked;
+            try
+            {
+                StartupRegistration.SetEnabledForCurrentExecutable(enable);
+                _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
+            }
+            catch (Exception exception)
+            {
+                _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
+                MessageBox.Show(
+                    "无法修改开机启动设置：" + exception.Message,
+                    "设置失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
             }
         }
 
