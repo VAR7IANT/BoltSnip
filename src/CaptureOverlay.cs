@@ -444,6 +444,525 @@ namespace BoltSnip
                 MagnifierRows * MagnifierScale);
 
             using (GraphicsPath shell = RoundedRectangle(bounds, 7))
-          ×n¼¶‰ËkºwµçUÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€½±‘	½Õ¹‘Ì¹%¹™±…Ñ” È°€È¤ì(€€€€€€€€€€€¹•İ	½Õ¹‘Ì¹%¹™±…Ñ” È°€È¤ì(€€€€€€€€€€€%¹Ù…±¥‘…Ñ”¡I•Ñ…¹±”¹U¹¥½¸¡½±‘	½Õ¹‘Ì°¹•İ	½Õ¹‘Ì¤¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”I•Ñ…¹±”•Ñ5…¹¥™¥•É	½Õ¹‘Ì¡A½¥¹ĞÁ½¥¹Ğ¤(€€€€€€€ì(€€€€€€€€€€€¥¹Ğİ¥‘Ñ €ô€¡5…¹¥™¥•É½±Õµ¹Ì€¨5…¹¥™¥•ÉM…±”¤€¬€¡5…¹¥™¥•ÉA…‘‘¥¹œ€¨€È¤ì(€€€€€€€€€€€¥¹Ğ¡•¥¡Ğ€ô€¡5…¹¥™¥•ÉI½İÌ€¨5…¹¥™¥•ÉM…±”¤€¬5…¹¥™¥•É…ÁÑ¥½¹!•¥¡Ğ€¬(€€€€€€€€€€€€€€€€¡5…¹¥™¥•ÉA…‘‘¥¹œ€¨€È¤ì(€€€€€€€€€€€¥¹Ğà€ôÁ½¥¹Ğ¹`€¬5…¹¥™¥•ÉÕÉÍ½É=™™Í•Ğì(€€€€€€€€€€€¥¹Ğä€ôÁ½¥¹Ğ¹d€¬5…¹¥™¥•ÉÕÉÍ½É=™™Í•Ğì((€€€€€€€€€€€¥˜€¡à€¬İ¥‘Ñ €ø±¥•¹ÑM¥é”¹]¥‘Ñ €´€Ø¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€à€ôÁ½¥¹Ğ¹`€´5…¹¥™¥•ÉÕÉÍ½É=™™Í•Ğ€´İ¥‘Ñ ì(€€€€€€€€€€€ô(€€€€€€€€€€€¥˜€¡ä€¬¡•¥¡Ğ€ø±¥•¹ÑM¥é”¹!•¥¡Ğ€´€Ø¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ä€ôÁ½¥¹Ğ¹d€´5…¹¥™¥•ÉÕÉÍ½É=™™Í•Ğ€´¡•¥¡Ğì(€€€€€€€€€€€ô((€€€€€€€€€€€à€ô5…Ñ ¹5…à Ø°5…Ñ ¹5¥¸¡±¥•¹ÑM¥é”¹]¥‘Ñ €´İ¥‘Ñ €´€Ø°à¤¤ì(€€€€€€€€€€€ä€ô5…Ñ ¹5…à Ø°5…Ñ ¹5¥¸¡±¥•¹ÑM¥é”¹!•¥¡Ğ€´¡•¥¡Ğ€´€Ø°ä¤¤ì(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜI•Ñ…¹±”¡à°ä°İ¥‘Ñ °¡•¥¡Ğ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”ÍÑ…Ñ¥ŒI•Ñ…¹±”•Ñ5…¹¥™¥•ÉM…µÁ±•I•Ñ…¹±”¡A½¥¹ĞÁ½¥¹Ğ¤(€€€€€€€ì(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜI•Ñ…¹±” (€€€€€€€€€€€€€€€Á½¥¹Ğ¹`€´€¡5…¹¥™¥•É½±Õµ¹Ì€¼€È¤°(€€€€€€€€€€€€€€€Á½¥¹Ğ¹d€´€¡5…¹¥™¥•ÉI½İÌ€¼€È¤°(€€€€€€€€€€€€€€€5…¹¥™¥•É½±Õµ¹Ì°(€€€€€€€€€€€€€€€5…¹¥™¥•ÉI½İÌ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥É…İQ½½±‰…È¡É…Á¡¥ÌÉ…Á¡¥Ì°I•Ñ…¹±”Í•±•Ñ¥½¸¤(€€€€€€€ì(€€€€€€€€€€€I•Ñ…¹±”Ñ½½±‰…È€ô•ÑQ½½±‰…É	½Õ¹‘Ì¡Í•±•Ñ¥½¸¤ì(€€€€€€€€€€€ÕÍ¥¹œ€¡É…Á¡¥ÍA…Ñ Á…Ñ €ôI½Õ¹‘•‘I•Ñ…¹±”¡Ñ½½±‰…È°€à¤¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É…Á¡¥Ì¹¥±±A…Ñ ¡}Ñ½½±‰…É	ÉÕÍ °Á…Ñ ¤ì(€€€€€€€€€€€ô((€€€€€€€€€€€É…İQ½½±‰…É	ÕÑÑ½¸¡É…Á¡¥Ì°Q½½±‰…ÉÑ¥½¸¹½Áä°€‹–’7–"Øƒ
-Üƒ–Ş›¦R¸ˆ°€À¤ì(€€€€€€€€€€€É…İQ½½±‰…É	ÕÑÑ½¸¡É…Á¡¥Ì°Q½½±‰…ÉÑ¥½¸¹M…Ù”°€‹’şw–¶`ƒ
-Üƒ–>Ï¦R¸ˆ°€Ä¤ì(€€€€€€€€€€€É…İQ½½±‰…É	ÕÑÑ½¸¡É…Á¡¥Ì°Q½½±‰…ÉÑ¥½¸¹…¹•°°€‹–>[šÚ ˆ°€È¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥É…İQ½½±‰…É	ÕÑÑ½¸¡É…Á¡¥ÌÉ…Á¡¥Ì°Q½½±‰…ÉÑ¥½¸…Ñ¥½¸°ÍÑÉ¥¹œÑ•áĞ°¥¹Ğ¥¹‘•à¤(€€€€€€€ì(€€€€€€€€€€€I•Ñ…¹±”‰ÕÑÑ½¸€ô•ÑQ½½±‰…É	ÕÑÑ½¹	½Õ¹‘Ì¡¥¹‘•à¤ì(€€€€€€€€€€€¥˜€¡}¡½Ù•ÉÑ¥½¸€ôô…Ñ¥½¸¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ÕÍ¥¹œ€¡É…Á¡¥ÍA…Ñ Á…Ñ €ôI½Õ¹‘•‘I•Ñ…¹±”¡‰ÕÑÑ½¸°€Ø¤¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€É…Á¡¥Ì¹¥±±A…Ñ ¡}Ñ½½±‰…É!½Ù•É	ÉÕÍ °Á…Ñ ¤ì(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€ô((€€€€€€€€€€€Q•áÑI•¹‘•É•È¹É…İQ•áĞ (€€€€€€€€€€€€€€€É…Á¡¥Ì°(€€€€€€€€€€€€€€€Ñ•áĞ°(€€€€€€€€€€€€€€€}Ñ½½±‰…É½¹Ğ°(€€€€€€€€€€€€€€€‰ÕÑÑ½¸°(€€€€€€€€€€€€€€€…Ñ¥½¸€ôôQ½½±‰…ÉÑ¥½¸¹½Áä€ü½±½È¹É½µÉˆ ÈÀ°€ÄÄà°€ÄÌÈ¤€è½±½È¹É½µÉˆ ĞÈ°€Ğà°€ÔĞ¤°(€€€€€€€€€€€€€€€Q•áÑ½Éµ…Ñ±…Ì¹!½É¥é½¹Ñ…±•¹Ñ•ÈğQ•áÑ½Éµ…Ñ±…Ì¹Y•ÉÑ¥…±•¹Ñ•ÈğQ•áÑ½Éµ…Ñ±…Ì¹9½A…‘‘¥¹œğQ•áÑ½Éµ…Ñ±…Ì¹M¥¹±•1¥¹”¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”I•Ñ…¹±”•ÑQ½½±‰…É	½Õ¹‘Ì¡I•Ñ…¹±”Í•±•Ñ¥½¸¤(€€€€€€€ì(€€€€€€€€€€€½¹ÍĞ¥¹Ğİ¥‘Ñ €ô€ÈĞĞì(€€€€€€€€€€€½¹ÍĞ¥¹Ğ¡•¥¡Ğ€ô€ĞÀì(€€€€€€€€€€€¥¹Ğà€ôÍ•±•Ñ¥½¸¹I¥¡Ğ€´İ¥‘Ñ ì(€€€€€€€€€€€¥¹Ğä€ôÍ•±•Ñ¥½¸¹	½ÑÑ½´€¬€äì((€€€€€€€€€€€à€ô5…Ñ ¹5…à Ø°5…Ñ ¹5¥¸¡±¥•¹ÑM¥é”¹]¥‘Ñ €´İ¥‘Ñ €´€Ø°à¤¤ì(€€€€€€€€€€€¥˜€¡ä€¬¡•¥¡Ğ€ø±¥•¹ÑM¥é”¹!•¥¡Ğ€´€Ø¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ä€ôÍ•±•Ñ¥½¸¹Q½À€´¡•¥¡Ğ€´€äì(€€€€€€€€€€€ô(€€€€€€€€€€€ä€ô5…Ñ ¹5…à Ø°ä¤ì(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜI•Ñ…¹±”¡à°ä°İ¥‘Ñ °¡•¥¡Ğ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”I•Ñ…¹±”•ÑQ½½±‰…É	ÕÑÑ½¹	½Õ¹‘Ì¡¥¹Ğ¥¹‘•à¤(€€€€€€€ì(€€€€€€€€€€€I•Ñ…¹±”Ñ½½±‰…È€ô•ÑQ½½±‰…É	½Õ¹‘Ì¡}Í•±•Ñ¥½¸¤ì(€€€€€€€€€€€¥¹Ñmtİ¥‘Ñ¡Ì€ôì€ÄÀÀ°€àÀ°€ØÀôì(€€€€€€€€€€€¥¹Ğà€ôÑ½½±‰…È¹1•™Ğ€¬€Èì(€€€€€€€€€€€™½È€¡¥¹Ğ¤€ô€Àì¤€ğ¥¹‘•àì¤¬¬¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€à€¬ôİ¥‘Ñ¡Ím¥tì(€€€€€€€€€€€ô(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜI•Ñ…¹±”¡à°Ñ½½±‰…È¹Q½À€¬€È°İ¥‘Ñ¡Ím¥¹‘•át°Ñ½½±‰…È¹!•¥¡Ğ€´€Ğ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Q½½±‰…ÉÑ¥½¸!¥ÑQ•ÍÑQ½½±‰…È¡A½¥¹Ğ±½…Ñ¥½¸¤(€€€€€€€ì(€€€€€€€€€€€¥˜€ …}¡…ÍM•±•Ñ¥½¸ñğ€…•ÑQ½½±‰…É	½Õ¹‘Ì¡}Í•±•Ñ¥½¸¤¹½¹Ñ…¥¹Ì¡±½…Ñ¥½¸¤¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹9½¹”ì(€€€€€€€€€€€ô((€€€€€€€€€€€¥˜€¡•ÑQ½½±‰…É	ÕÑÑ½¹	½Õ¹‘Ì À¤¹½¹Ñ…¥¹Ì¡±½…Ñ¥½¸¤¤É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹½Áäì(€€€€€€€€€€€¥˜€¡•ÑQ½½±‰…É	ÕÑÑ½¹	½Õ¹‘Ì Ä¤¹½¹Ñ…¥¹Ì¡±½…Ñ¥½¸¤¤É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹M…Ù”ì(€€€€€€€€€€€¥˜€¡•ÑQ½½±‰…É	ÕÑÑ½¹	½Õ¹‘Ì È¤¹½¹Ñ…¥¹Ì¡±½…Ñ¥½¸¤¤É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹…¹•°ì(€€€€€€€€€€€É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹9½¹”ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Q½½±‰…ÉÑ¥½¸•ÑM•±•Ñ¥½¹±¥­Ñ¥½¸¡5½ÕÍ•	ÕÑÑ½¹Ì‰ÕÑÑ½¸°A½¥¹Ğ±½…Ñ¥½¸¤(€€€€€€€ì(€€€€€€€€€€€¥˜€ …}¡…ÍM•±•Ñ¥½¸¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹9½¹”ì(€€€€€€€€€€€ô((€€€€€€€€€€€¥˜€¡‰ÕÑÑ½¸€ôô5½ÕÍ•	ÕÑÑ½¹Ì¹I¥¡Ğ¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹M…Ù”ì(€€€€€€€€€€€ô((€€€€€€€€€€€¥˜€¡‰ÕÑÑ½¸€„ô5½ÕÍ•	ÕÑÑ½¹Ì¹1•™Ğ¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸Q½½±‰…ÉÑ¥½¸¹9½¹”ì(€€€€€€€€€€€ô((€€€€€€€€€€€Q½½±‰…ÉÑ¥½¸Ñ½½±‰…ÉÑ¥½¸€ô!¥ÑQ•ÍÑQ½½±‰…È¡±½…Ñ¥½¸¤ì(€€€€€€€€€€€É•ÑÕÉ¸Ñ½½±‰…ÉÑ¥½¸€ôôQ½½±‰…ÉÑ¥½¸¹9½¹”(€€€€€€€€€€€€€€€€üQ½½±‰…ÉÑ¥½¸¹½Áä(€€€€€€€€€€€€€€€€èÑ½½±‰…ÉÑ¥½¸ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥A•É™½ÉµQ½½±‰…ÉÑ¥½¸¡Q½½±‰…ÉÑ¥½¸…Ñ¥½¸¤(€€€€€€€ì(€€€€€€€€€€€¥˜€¡…Ñ¥½¸€ôôQ½½±‰…ÉÑ¥½¸¹½Áä¤½ÁåM•±•Ñ¥½¸ ¤ì(€€€€€€€€€€€•±Í”¥˜€¡…Ñ¥½¸€ôôQ½½±‰…ÉÑ¥½¸¹M…Ù”¤M…Ù•M•±•Ñ¥½¸ ¤ì(€€€€€€€€€€€•±Í”¥˜€¡…Ñ¥½¸€ôôQ½½±‰…ÉÑ¥½¸¹…¹•°¤¥¹¥Í ¡™…±Í”°€‹–ŞË–>[šÚ ˆ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥½ÁåM•±•Ñ¥½¸ ¤(€€€€€€€ì(€€€€€€€€€€€¥˜€ …}¡…ÍM•±•Ñ¥½¸ñğ}ÍÉ••¸€ôô¹Õ±°¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€ÑÉä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ÕÍ¥¹œ€¡	¥Ñµ…ÀÉ½ÁÁ•€ôMÉ••¹…ÁÑÕÉ”¹É½À¡}ÍÉ••¸°}Í•±•Ñ¥½¸¤¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€±¥Á‰½…É¹M•Ñ…Ñ…=‰©•Ğ¡É½ÁÁ•°ÑÉÕ”°€Ô°€ĞÀ¤ì(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€€€€€¥¹¥Í ¡ÑÉÕ”°€‹–ŞË–’7–"Û–"Ã–&«¢ÒÓšvüˆ¤ì(€€€€€€€€€€€ô(€€€€€€€€€€€…Ñ €¡áÑ•É¹…±á•ÁÑ¥½¸¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€MåÍÑ•´¹5•‘¥„¹MåÍÑ•µM½Õ¹‘Ì¹á±…µ…Ñ¥½¸¹A±…ä ¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥M…Ù•M•±•Ñ¥½¸ ¤(€€€€€€€ì(€€€€€€€€€€€¥˜€ …}¡…ÍM•±•Ñ¥½¸ñğ}ÍÉ••¸€ôô¹Õ±°¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€ÑÉä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€ÕÍ¥¹œ€¡M…Ù•¥±•¥…±½œ‘¥…±½œ€ô¹•ÜM…Ù•¥±•¥…±½œ ¤¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€‘¥…±½œ¹Q¥Ñ±”€ô€‹’şw–¶cš"«–nøˆì(€€€€€€€€€€€€€€€€€€€‘¥…±½œ¹¥±Ñ•È€ô€‰A9ƒ–nû–<€ ¨¹Á¹œ¥ğ¨¹Á¹ñ)Aƒ–nû–<€ ¨¹©Áœ¥ğ¨¹©Áœˆì(€€€€€€€€€€€€€€€€€€€‘¥…±½œ¹•™…Õ±ÑáĞ€ô€‰Á¹œˆì(€€€€€€€€€€€€€€€€€€€‘¥…±½œ¹‘‘áÑ•¹Í¥½¸€ôÑÉÕ”ì(€€€€€€€€€€€€€€€€€€€‘¥…±½œ¹¥±•9…µ”€ô€‹š"«–nù|ˆ€¬…Ñ•Q¥µ”¹9½Ü¹Q½MÑÉ¥¹œ ‰åååå55‘‘}!!µµÍÌˆ¤€¬€ˆ¹Á¹œˆì((€€€€€€€€€€€€€€€€€€€¥˜€¡‘¥…±½œ¹M¡½İ¥…±½œ¡Ñ¡¥Ì¤€„ô¥…±½I•ÍÕ±Ğ¹=,¤(€€€€€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€€€€€€€€€ô((€€€€€€€€€€€€€€€€€€€ÕÍ¥¹œ€¡	¥Ñµ…ÀÉ½ÁÁ•€ôMÉ••¹…ÁÑÕÉ”¹É½À¡}ÍÉ••¸°}Í•±•Ñ¥½¸¤¤(€€€€€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€€€€€M…Ù•%µ…”¡É½ÁÁ•°‘¥…±½œ¹¥±•9…µ”¤ì(€€€€€€€€€€€€€€€€€€€ô(€€€€€€€€€€€€€€€ô((€€€€€€€€€€€€€€€¥¹¥Í ¡ÑÉÕ”°€‹š"«–nû–ŞË’şw–¶`ˆ¤ì(€€€€€€€€€€€ô(€€€€€€€€€€€…Ñ €¡á•ÁÑ¥½¸•á•ÁÑ¥½¸¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€5•ÍÍ…•	½à¹M¡½Ü¡Ñ¡¥Ì°•á•ÁÑ¥½¸¹5•ÍÍ…”°€‹’şw–¶c–’Ç¢Ò”ˆ°5•ÍÍ…•	½á	ÕÑÑ½¹Ì¹=,°5•ÍÍ…•	½á%½¸¹ÉÉ½È¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”ÍÑ…Ñ¥ŒÙ½¥M…Ù•%µ…”¡	¥Ñµ…À¥µ…”°ÍÑÉ¥¹œÁ…Ñ ¤(€€€€€€€ì(€€€€€€€€€€€‰½½°¥Í)Á•œ€ôÁ…Ñ ¹¹‘Í]¥Ñ  ˆ¹©Áœˆ°MÑÉ¥¹½µÁ…É¥Í½¸¹=É‘¥¹…±%¹½É•…Í”¤ñğ(€€€€€€€€€€€€€€€Á…Ñ ¹¹‘Í]¥Ñ  ˆ¹©Á•œˆ°MÑÉ¥¹½µÁ…É¥Í½¸¹=É‘¥¹…±%¹½É•…Í”¤ì(€€€€€€€€€€€¥˜€ …¥Í)Á•œ¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¥µ…”¹M…Ù”¡Á…Ñ °%µ…•½Éµ…Ğ¹A¹œ¤ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€%µ…•½‘•%¹™¼©Á•¹½‘•È€ô¹Õ±°ì(€€€€€€€€€€€%µ…•½‘•%¹™½mt•¹½‘•ÉÌ€ô%µ…•½‘•%¹™¼¹•Ñ%µ…•¹½‘•ÉÌ ¤ì(€€€€€€€€€€€™½È€¡¥¹Ğ¤€ô€Àì¤€ğ•¹½‘•ÉÌ¹1•¹Ñ ì¤¬¬¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¥˜€¡•¹½‘•ÉÍm¥t¹½Éµ…Ñ%€ôô%µ…•½Éµ…Ğ¹)Á•œ¹Õ¥¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€©Á•¹½‘•È€ô•¹½‘•ÉÍm¥tì(€€€€€€€€€€€€€€€€€€€‰É•…¬ì(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€ô((€€€€€€€€€€€¥˜€¡©Á•¹½‘•È€ôô¹Õ±°¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¥µ…”¹M…Ù”¡Á…Ñ °%µ…•½Éµ…Ğ¹)Á•œ¤ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€ÕÍ¥¹œ€¡¹½‘•ÉA…É…µ•Ñ•ÉÌÁ…É…µ•Ñ•ÉÌ€ô¹•Ü¹½‘•ÉA…É…µ•Ñ•ÉÌ Ä¤¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€Á…É…µ•Ñ•ÉÌ¹A…É…µlÁt€ô¹•Ü¹½‘•ÉA…É…µ•Ñ•È (€€€€€€€€€€€€€€€€€€€MåÍÑ•´¹É…İ¥¹œ¹%µ…¥¹œ¹¹½‘•È¹EÕ…±¥Ñä°(€€€€€€€€€€€€€€€€€€€)Á•EÕ…±¥Ñä¤ì(€€€€€€€€€€€€€€€¥µ…”¹M…Ù”¡Á…Ñ °©Á•¹½‘•È°Á…É…µ•Ñ•ÉÌ¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”I•Ñ…¹±”¥¹‘]¥¹‘½İĞ¡A½¥¹ĞÁ½¥¹Ğ¤(€€€€€€€ì(€€€€€€€€€€€™½È€¡¥¹Ğ¤€ô€Àì¤€ğ}İ¥¹‘½İI•Ñ…¹±•Ì¹½Õ¹Ğì¤¬¬¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¥˜€¡}İ¥¹‘½İI•Ñ…¹±•Ím¥t¹½¹Ñ…¥¹Ì¡Á½¥¹Ğ¤¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸}İ¥¹‘½İI•Ñ…¹±•Ím¥tì(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€ô((€€€€€€€€€€€€¼¼-••Àİ¥¹‘½ÜÍ¹…ÁÁ¥¹œÉ•ÍÁ½¹Í¥Ù”…É½Õ¹Ñ¡¥¸‰½É‘•ÉÌ…¹Í¡…‘½İÌ¸á…Ğ¡¥ÑÌ…É”(€€€€€€€€€€€€¼¼…±İ…åÌÁÉ•™•ÉÉ•°Ñ¡•¸Ñ¡”Ñ½Áµ½ÍĞİ¥¹‘½Üİ¥Ñ¡¥¸„Íµ…±°µ…¹•Ñ¥Œ•‘”É…‘¥ÕÌ¸(€€€€€€€€€€€™½È€¡¥¹Ğ¤€ô€Àì¤€ğ}İ¥¹‘½İI•Ñ…¹±•Ì¹½Õ¹Ğì¤¬¬¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€I•Ñ…¹±”µ…¹•Ñ¥	½Õ¹‘Ì€ô}İ¥¹‘½İI•Ñ…¹±•Ím¥tì(€€€€€€€€€€€€€€€µ…¹•Ñ¥	½Õ¹‘Ì¹%¹™±…Ñ”¡]¥¹‘½İ5…¹•ÑI…‘¥ÕÌ°]¥¹‘½İ5…¹•ÑI…‘¥ÕÌ¤ì(€€€€€€€€€€€€€€€¥˜€¡µ…¹•Ñ¥	½Õ¹‘Ì¹½¹Ñ…¥¹Ì¡Á½¥¹Ğ¤¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸}İ¥¹‘½İI•Ñ…¹±•Ím¥tì(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€ô((€€€€€€€€€€€MÉ••¸µ½¹¥Ñ½È€ôMÉ••¸¹É½µA½¥¹Ğ¡A½¥¹ÑQ½MÉ••¸¡Á½¥¹Ğ¤¤ì(€€€€€€€€€€€I•Ñ…¹±”‰½Õ¹‘Ì€ôµ½¹¥Ñ½È¹	½Õ¹‘Ìì(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜI•Ñ…¹±” (€€€€€€€€€€€€€€€‰½Õ¹‘Ì¹1•™Ğ€´}Ù¥ÉÑÕ…±MÉ••¸¹1•™Ğ°(€€€€€€€€€€€€€€€‰½Õ¹‘Ì¹Q½À€´}Ù¥ÉÑÕ…±MÉ••¸¹Q½À°(€€€€€€€€€€€€€€€‰½Õ¹‘Ì¹]¥‘Ñ °(€€€€€€€€€€€€€€€‰½Õ¹‘Ì¹!•¥¡Ğ¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥¥¹¥Í ¡‰½½°ÍÕ••‘•°ÍÑÉ¥¹œµ•ÍÍ…”¤(€€€€€€€ì(€€€€€€€€€€€¥˜€ …}…ÁÑÕÉ•Ñ¥Ù”¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€}…ÁÑÕÉ•Ñ¥Ù”€ô™…±Í”ì(€€€€€€€€€€€}İ¥¹‘½İQÉ…­¥¹Q¥µ•È¹MÑ½À ¤ì(€€€€€€€€€€€…ÁÑÕÉ”€ô™…±Í”ì(€€€€€€€€€€€!¥‘” ¤ì(€€€€€€€€€€€¥ÍÁ½Í•…ÁÑÕÉ•‘MÉ••¸ ¤ì(€€€€€€€€€€€I•Í•ÑM•±•Ñ¥½¸ ¤ì((€€€€€€€€€€€Ù•¹Ñ!…¹‘±•Èñ…ÁÑÕÉ•MÑ…ÑÕÍÙ•¹ÑÉÌø¡…¹‘±•È€ô…ÁÑÕÉ•¥¹¥Í¡•ì(€€€€€€€€€€€¥˜€¡¡…¹‘±•È€„ô¹Õ±°¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¡…¹‘±•È¡Ñ¡¥Ì°¹•Ü…ÁÑÕÉ•MÑ…ÑÕÍÙ•¹ÑÉÌ¡ÍÕ••‘•°µ•ÍÍ…”¤¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥I•Í•ÑM•±•Ñ¥½¸ ¤(€€€€€€€ì(€€€€€€€€€€€}¡½Ù•ÉI•Ñ…¹±”€ôI•Ñ…¹±”¹µÁÑäì(€€€€€€€€€€€}Í•±•Ñ¥½¸€ôI•Ñ…¹±”¹µÁÑäì(€€€€€€€€€€€}µ½ÕÍ•½İ¸€ô™…±Í”ì(€€€€€€€€€€€}‘É…¥¹œ€ô™…±Í”ì(€€€€€€€€€€€}¡…ÍM•±•Ñ¥½¸€ô™…±Í”ì(€€€€€€€€€€€}¡½Ù•ÉÑ¥½¸€ôQ½½±‰…ÉÑ¥½¸¹9½¹”ì(€€€€€€€€€€€}¡…ÍQÉ…­•‘ÕÉÍ½È€ô™…±Í”ì(€€€€€€€€€€€}¡…Í5…¹¥™¥•ÉA½¥¹Ğ€ô™…±Í”ì(€€€€€€€€€€€ÕÉÍ½È€ôÕÉÍ½ÉÌ¹É½ÍÌì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥¥ÍÁ½Í•…ÁÑÕÉ•‘MÉ••¸ ¤(€€€€€€€ì(€€€€€€€€€€€¥˜€¡}ÍÉ••¸€„ô¹Õ±°¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€}ÍÉ••¸¹¥ÍÁ½Í” ¤ì(€€€€€€€€€€€€€€€}ÍÉ••¸€ô¹Õ±°ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”A½¥¹Ğ±…µÁQ½±¥•¹Ğ¡A½¥¹ĞÁ½¥¹Ğ¤(€€€€€€€ì(€€€€€€€€€€€É•ÑÕÉ¸¹•ÜA½¥¹Ğ (€€€€€€€€€€€€€€€5…Ñ ¹5…à À°5…Ñ ¹5¥¸¡±¥•¹ÑM¥é”¹]¥‘Ñ °Á½¥¹Ğ¹`¤¤°(€€€€€€€€€€€€€€€5…Ñ ¹5…à À°5…Ñ ¹5¥¸¡±¥•¹ÑM¥é”¹!•¥¡Ğ°Á½¥¹Ğ¹d¤¤¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”ÍÑ…Ñ¥ŒI•Ñ…¹±”I•Ñ…¹±•É½µA½¥¹ÑÌ¡A½¥¹Ğ™¥ÉÍĞ°A½¥¹ĞÍ•½¹¤(€€€€€€€ì(€€€€€€€€€€€É•ÑÕÉ¸I•Ñ…¹±”¹É½µ1QI (€€€€€€€€€€€€€€€5…Ñ ¹5¥¸¡™¥ÉÍĞ¹`°Í•½¹¹`¤°(€€€€€€€€€€€€€€€5…Ñ ¹5¥¸¡™¥ÉÍĞ¹d°Í•½¹¹d¤°(€€€€€€€€€€€€€€€5…Ñ ¹5…à¡™¥ÉÍĞ¹`°Í•½¹¹`¤°(€€€€€€€€€€€€€€€5…Ñ ¹5…à¡™¥ÉÍĞ¹d°Í•½¹¹d¤¤ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥%¹Ù…±¥‘…Ñ•M•±•Ñ¥½¹QÉ…¹Í¥Ñ¥½¸¡I•Ñ…¹±”½±‘I•Ñ…¹±”°I•Ñ…¹±”¹•İI•Ñ…¹±”°‰½½°¥¹±Õ‘•Q½½±‰…È¤(€€€€€€€ì(€€€€€€€€€€€¥˜€¡½±‘I•Ñ…¹±”¹%ÍµÁÑä€˜˜¹•İI•Ñ…¹±”¹%ÍµÁÑä¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€I•¥½¸¡…¹•€ô½±‘I•Ñ…¹±”¹%ÍµÁÑä(€€€€€€€€€€€€€€€€ü¹•ÜI•¥½¸¡¹•İI•Ñ…¹±”¤(€€€€€€€€€€€€€€€€è¹•ÜI•¥½¸¡½±‘I•Ñ…¹±”¤ì(€€€€€€€€€€€ÑÉä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¥˜€ …¹•İI•Ñ…¹±”¹%ÍµÁÑä€˜˜€…½±‘I•Ñ…¹±”¹%ÍµÁÑä¤(€€€€€€€€€€€€€€€ì(€€€€€€€€€€€€€€€€€€€¡…¹•¹a½È¡¹•İI•Ñ…¹±”¤ì(€€€€€€€€€€€€€€€ô((€€€€€€€€€€€€€€€‘‘M•±•Ñ¥½¹¡É½µ”¡¡…¹•°½±‘I•Ñ…¹±”°¥¹±Õ‘•Q½½±‰…È¤ì(€€€€€€€€€€€€€€€‘‘M•±•Ñ¥½¹¡É½µ”¡¡…¹•°¹•İI•Ñ…¹±”°¥¹±Õ‘•Q½½±‰…È¤ì(€€€€€€€€€€€€€€€%¹Ù…±¥‘…Ñ”¡¡…¹•¤ì(€€€€€€€€€€€ô(€€€€€€€€€€€™¥¹…±±ä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¡…¹•¹¥ÍÁ½Í” ¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥%¹Ù…±¥‘…Ñ•M•±•Ñ¥½¹¡É½µ”¡I•Ñ…¹±”É•Ñ…¹±”°‰½½°¥¹±Õ‘•Q½½±‰…È¤(€€€€€€€ì(€€€€€€€€€€€¥˜€¡É•Ñ…¹±”¹%ÍµÁÑä¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€I•¥½¸¡É½µ”€ô¹•ÜI•¥½¸¡I•Ñ…¹±”¹µÁÑä¤ì(€€€€€€€€€€€ÑÉä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€‘‘M•±•Ñ¥½¹¡É½µ”¡¡É½µ”°É•Ñ…¹±”°¥¹±Õ‘•Q½½±‰…È¤ì(€€€€€€€€€€€€€€€%¹Ù…±¥‘…Ñ”¡¡É½µ”¤ì(€€€€€€€€€€€ô(€€€€€€€€€€€™¥¹…±±ä(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€¡É½µ”¹¥ÍÁ½Í” ¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”Ù½¥‘‘M•±•Ñ¥½¹¡É½µ”¡I•¥½¸É•¥½¸°I•Ñ…¹±”É•Ñ…¹±”°‰½½°¥¹±Õ‘•Q½½±‰…È¤(€€€€€€€ì(€€€€€€€€€€€¥˜€¡É•Ñ…¹±”¹%ÍµÁÑä¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€½¹ÍĞ¥¹Ğ•‘”€ô€Ôì(€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡¹•ÜI•Ñ…¹±”¡É•Ñ…¹±”¹1•™Ğ€´•‘”°É•Ñ…¹±”¹Q½À€´•‘”°É•Ñ…¹±”¹]¥‘Ñ €¬•‘”€¨€È°•‘”€¨€È¤¤ì(€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡¹•ÜI•Ñ…¹±”¡É•Ñ…¹±”¹1•™Ğ€´•‘”°É•Ñ…¹±”¹	½ÑÑ½´€´•‘”°É•Ñ…¹±”¹]¥‘Ñ €¬•‘”€¨€È°•‘”€¨€È¤¤ì(€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡¹•ÜI•Ñ…¹±”¡É•Ñ…¹±”¹1•™Ğ€´•‘”°É•Ñ…¹±”¹Q½À°•‘”€¨€È°É•Ñ…¹±”¹!•¥¡Ğ¤¤ì(€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡¹•ÜI•Ñ…¹±”¡É•Ñ…¹±”¹I¥¡Ğ€´•‘”°É•Ñ…¹±”¹Q½À°•‘”€¨€È°É•Ñ…¹±”¹!•¥¡Ğ¤¤ì(€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡•Ñ¥µ•¹Í¥½¹1…‰•±	½Õ¹‘Ì¡É•Ñ…¹±”¤¤ì(€€€€€€€€€€€¥˜€¡¥¹±Õ‘•Q½½±‰…È¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€É•¥½¸¹U¹¥½¸¡•ÑQ½½±‰…É	½Õ¹‘Ì¡É•Ñ…¹±”¤¤ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”I•Ñ…¹±”•Ñ¥µ•¹Í¥½¹1…‰•±	½Õ¹‘Ì¡I•Ñ…¹±”É•Ñ…¹±”¤(€€€€€€€ì(€€€€€€€€€€€ÍÑÉ¥¹œ‘¥µ•¹Í¥½¹Ì€ôÉ•Ñ…¹±”¹]¥‘Ñ €¬€ˆƒ\€ˆ€¬É•Ñ…¹±”¹!•¥¡Ğì(€€€€€€€€€€€M¥é”Í¥é”€ôQ•áÑI•¹‘•É•È¹5•…ÍÕÉ•Q•áĞ (€€€€€€€€€€€€€€€‘¥µ•¹Í¥½¹Ì°(€€€€€€€€€€€€€€€}ÕÑ¥±¥Ñå½¹Ğ°(€€€€€€€€€€€€€€€M¥é”¹µÁÑä°(€€€€€€€€€€€€€€€Q•áÑ½Éµ…Ñ±…Ì¹9½A…‘‘¥¹œğQ•áÑ½Éµ…Ñ±…Ì¹M¥¹±•1¥¹”¤ì((€€€€€€€€€€€I•Ñ…¹±”±…‰•°€ô¹•ÜI•Ñ…¹±” (€€€€€€€€€€€€€€€É•Ñ…¹±”¹1•™Ğ°(€€€€€€€€€€€€€€€É•Ñ…¹±”¹Q½À€´Í¥é”¹!•¥¡Ğ€´€ÄÀ°(€€€€€€€€€€€€€€€Í¥é”¹]¥‘Ñ €¬€ÄĞ°(€€€€€€€€€€€€€€€Í¥é”¹!•¥¡Ğ€¬€Ø¤ì(€€€€€€€€€€€¥˜€¡±…‰•°¹Q½À€ğ€Ğ¤(€€€€€€€€€€€ì(€€€€€€€€€€€€€€€±…‰•°¹d€ôÉ•Ñ…¹±”¹Q½À€¬€Øì(€€€€€€€€€€€ô(€€€€€€€€€€€É•ÑÕÉ¸±…‰•°ì(€€€€€€€ô((€€€€€€€ÁÉ¥Ù…Ñ”ÍÑ…Ñ¥ŒÉ…Á¡¥ÍA…Ñ I½Õ¹‘•‘I•Ñ…¹±”¡I•Ñ…¹±”É•Ñ…¹±”°¥¹ĞÉ…‘¥ÕÌ¤(€€€€€€€ì(€€€€€€€€€€€¥¹Ğ‘¥…µ•Ñ•È€ôÉ…‘¥ÕÌ€¨€Èì(€€€€€€€€€€€É…Á¡¥ÍA…Ñ Á…Ñ €ô¹•ÜÉ…Á¡¥ÍA…Ñ  ¤ì(€€€€€€€€€€€Á…Ñ ¹‘‘ÉŒ¡É•Ñ…¹±”¹1•™Ğ°É•Ñ…¹±”¹Q½À°‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°€ÄàÀ°€äÀ¤ì(€€€€€€€€€€€Á…Ñ ¹‘‘ÉŒ¡É•Ñ…¹±”¹I¥¡Ğ€´‘¥…µ•Ñ•È°É•Ñ…¹±”¹Q½À°‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°€ÈÜÀ°€äÀ¤ì(€€€€€€€€€€€Á…Ñ ¹‘‘ÉŒ¡É•Ñ…¹±”¹I¥¡Ğ€´‘¥…µ•Ñ•È°É•Ñ…¹±”¹	½ÑÑ½´€´‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°€À°€äÀ¤ì(€€€€€€€€€€€Á…Ñ ¹‘‘ÉŒ¡É•Ñ…¹±”¹1•™Ğ°É•Ñ…¹±”¹	½ÑÑ½´€´‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°‘¥…µ•Ñ•È°€äÀ°€äÀ¤ì(€€€€€€€€€€€Á…Ñ ¹±½Í•¥ÕÉ” ¤ì(€€€€€€€€€€€É•ÑÕÉ¸Á…Ñ ì(€€€€€€€ô(€€€ô((€€€¥¹Ñ•É¹…°Í•…±•±…ÍÌ…ÁÑÕÉ•MÑ…ÑÕÍÙ•¹ÑÉÌ€èÙ•¹ÑÉÌ(€€€ì(€€€€€€€¥¹Ñ•É¹…°…ÁÑÕÉ•MÑ…ÑÕÍÙ•¹ÑÉÌ¡‰½½°ÍÕ••‘•°ÍÑÉ¥¹œµ•ÍÍ…”¤(€€€€€€€ì(€€€€€€€€€€€MÕ••‘•€ôÍÕ••‘•ì(€€€€€€€€€€€5•ÍÍ…”€ôµ•ÍÍ…”ì(€€€€€€€ô((€€€€€€€¥¹Ñ•É¹…°‰½½°MÕ••‘•ì•ĞìÁÉ¥Ù…Ñ”Í•Ğìô(€€€€€€€¥¹Ñ•É¹…°ÍÑÉ¥¹œ5•ÍÍ…”ì•ĞìÁÉ¥Ù…Ñ”Í•Ğìô(€€€ô)ô(
+            {
+                graphics.FillPath(_magnifierBrush, shell);
+                graphics.DrawPath(_magnifierBorderPen, shell);
+            }
+
+            graphics.FillRectangle(_magnifierPixelAreaBrush, pixels);
+
+            Rectangle requested = GetMagnifierSampleRectangle(point);
+            Rectangle available = Rectangle.Intersect(
+                requested,
+                new Rectangle(0, 0, _screen.Width, _screen.Height));
+            if (!available.IsEmpty)
+            {
+                Rectangle destination = new Rectangle(
+                    pixels.Left + ((available.Left - requested.Left) * MagnifierScale),
+                    pixels.Top + ((available.Top - requested.Top) * MagnifierScale),
+                    available.Width * MagnifierScale,
+                    available.Height * MagnifierScale);
+
+                GraphicsState state = graphics.Save();
+                graphics.SetClip(pixels);
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighSpeed;
+                graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                graphics.PixelOffsetMode = PixelOffsetMode.Half;
+                graphics.DrawImage(_screen, destination, available, GraphicsUnit.Pixel);
+                graphics.Restore(state);
+            }
+
+            for (int column = 1; column < MagnifierColumns; column++)
+            {
+                int x = pixels.Left + (column * MagnifierScale);
+                graphics.DrawLine(_magnifierGridPen, x, pixels.Top, x, pixels.Bottom);
+            }
+            for (int row = 1; row < MagnifierRows; row++)
+            {
+                int y = pixels.Top + (row * MagnifierScale);
+                graphics.DrawLine(_magnifierGridPen, pixels.Left, y, pixels.Right, y);
+            }
+
+            Rectangle centerPixel = new Rectangle(
+                pixels.Left + ((MagnifierColumns / 2) * MagnifierScale),
+                pixels.Top + ((MagnifierRows / 2) * MagnifierScale),
+                MagnifierScale,
+                MagnifierScale);
+            centerPixel.Width -= 1;
+            centerPixel.Height -= 1;
+            graphics.DrawRectangle(_magnifierCrosshairPen, centerPixel);
+
+            Color color = _screen.GetPixel(point.X, point.Y);
+            int screenX = _virtualScreen.Left + point.X;
+            int screenY = _virtualScreen.Top + point.Y;
+            string caption = screenX + ", " + screenY + "   #" +
+                color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2");
+            Rectangle captionBounds = new Rectangle(
+                bounds.Left + MagnifierPadding + 2,
+                pixels.Bottom,
+                bounds.Width - ((MagnifierPadding + 2) * 2),
+                MagnifierCaptionHeight);
+            TextRenderer.DrawText(
+                graphics,
+                caption,
+                _utilityFont,
+                captionBounds,
+                Color.White,
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine |
+                TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
+        }
+
+        private void UpdateMagnifier(Point location)
+        {
+            Point point = new Point(
+                Math.Max(0, Math.Min(ClientSize.Width - 1, location.X)),
+                Math.Max(0, Math.Min(ClientSize.Height - 1, location.Y)));
+            Rectangle oldBounds = _hasMagnifierPoint
+                ? GetMagnifierBounds(_magnifierPoint)
+                : Rectangle.Empty;
+
+            _magnifierPoint = point;
+            _hasMagnifierPoint = true;
+            Rectangle newBounds = GetMagnifierBounds(_magnifierPoint);
+
+            if (oldBounds.IsEmpty)
+            {
+                Invalidate(newBounds);
+                return;
+            }
+
+            oldBounds.Inflate(2, 2);
+            newBounds.Inflate(2, 2);
+            Invalidate(Rectangle.Union(oldBounds, newBounds));
+        }
+
+        private Rectangle GetMagnifierBounds(Point point)
+        {
+            int width = (MagnifierColumns * MagnifierScale) + (MagnifierPadding * 2);
+            int height = (MagnifierRows * MagnifierScale) + MagnifierCaptionHeight +
+                (MagnifierPadding * 2);
+            int x = point.X + MagnifierCursorOffset;
+            int y = point.Y + MagnifierCursorOffset;
+
+            if (x + width > ClientSize.Width - 6)
+            {
+                x = point.X - MagnifierCursorOffset - width;
+            }
+            if (y + height > ClientSize.Height - 6)
+            {
+                y = point.Y - MagnifierCursorOffset - height;
+            }
+
+            x = Math.Max(6, Math.Min(ClientSize.Width - width - 6, x));
+            y = Math.Max(6, Math.Min(ClientSize.Height - height - 6, y));
+            return new Rectangle(x, y, width, height);
+        }
+
+        private static Rectangle GetMagnifierSampleRectangle(Point point)
+        {
+            return new Rectangle(
+                point.X - (MagnifierColumns / 2),
+                point.Y - (MagnifierRows / 2),
+                MagnifierColumns,
+                MagnifierRows);
+        }
+
+        private void DrawToolbar(Graphics graphics, Rectangle selection)
+        {
+            Rectangle toolbar = GetToolbarBounds(selection);
+            using (GraphicsPath path = RoundedRectangle(toolbar, 8))
+            {
+                graphics.FillPath(_toolbarBrush, path);
+            }
+
+            DrawToolbarButton(graphics, ToolbarAction.Copy, "å¤åˆ¶ Â· å·¦é”®", 0);
+            DrawToolbarButton(graphics, ToolbarAction.Save, "ä¿å­˜ Â· å³é”®", 1);
+            DrawToolbarButton(graphics, ToolbarAction.Cancel, "å–æ¶ˆ", 2);
+        }
+
+        private void DrawToolbarButton(Graphics graphics, ToolbarAction action, string text, int index)
+        {
+            Rectangle button = GetToolbarButtonBounds(index);
+            if (_hoverAction == action)
+            {
+                using (GraphicsPath path = RoundedRectangle(button, 6))
+                {
+                    graphics.FillPath(_toolbarHoverBrush, path);
+                }
+            }
+
+            TextRenderer.DrawText(
+                graphics,
+                text,
+                _toolbarFont,
+                button,
+                action == ToolbarAction.Copy ? Color.FromArgb(20, 118, 132) : Color.FromArgb(42, 48, 54),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+        }
+
+        private Rectangle GetToolbarBounds(Rectangle selection)
+        {
+            const int width = 244;
+            const int height = 40;
+            int x = selection.Right - width;
+            int y = selection.Bottom + 9;
+
+            x = Math.Max(6, Math.Min(ClientSize.Width - width - 6, x));
+            if (y + height > ClientSize.Height - 6)
+            {
+                y = selection.Top - height - 9;
+            }
+            y = Math.Max(6, y);
+            return new Rectangle(x, y, width, height);
+        }
+
+        private Rectangle GetToolbarButtonBounds(int index)
+        {
+            Rectangle toolbar = GetToolbarBounds(_selection);
+            int[] widths = { 100, 80, 60 };
+            int x = toolbar.Left + 2;
+            for (int i = 0; i < index; i++)
+            {
+                x += widths[i];
+            }
+            return new Rectangle(x, toolbar.Top + 2, widths[index], toolbar.Height - 4);
+        }
+
+        private ToolbarAction HitTestToolbar(Point location)
+        {
+            if (!_hasSelection || !GetToolbarBounds(_selection).Contains(location))
+            {
+                return ToolbarAction.None;
+            }
+
+            if (GetToolbarButtonBounds(0).Contains(location)) return ToolbarAction.Copy;
+            if (GetToolbarButtonBounds(1).Contains(location)) return ToolbarAction.Save;
+            if (GetToolbarButtonBounds(2).Contains(location)) return ToolbarAction.Cancel;
+            return ToolbarAction.None;
+        }
+
+        private ToolbarAction GetSelectionClickAction(MouseButtons button, Point location)
+        {
+            if (!_hasSelection)
+            {
+                return ToolbarAction.None;
+            }
+
+            if (button == MouseButtons.Right)
+            {
+                return ToolbarAction.Save;
+            }
+
+            if (button != MouseButtons.Left)
+            {
+                return ToolbarAction.None;
+            }
+
+            ToolbarAction toolbarAction = HitTestToolbar(location);
+            return toolbarAction == ToolbarAction.None
+                ? ToolbarAction.Copy
+                : toolbarAction;
+        }
+
+        private void PerformToolbarAction(ToolbarAction action)
+        {
+            if (action == ToolbarAction.Copy) CopySelection();
+            else if (action == ToolbarAction.Save) SaveSelection();
+            else if (action == ToolbarAction.Cancel) Finish(false, "å·²å–æ¶ˆ");
+        }
+
+        private void CopySelection()
+        {
+            if (!_hasSelection || _screen == null)
+            {
+                return;
+            }
+
+            try
+            {
+                using (Bitmap cropped = ScreenCapture.Crop(_screen, _selection))
+                {
+                    Clipboard.SetDataObject(cropped, true, 5, 40);
+                }
+                Finish(true, "å·²å¤åˆ¶åˆ°å‰ªè´´æ¿");
+            }
+            catch (ExternalException)
+            {
+                System.Media.SystemSounds.Exclamation.Play();
+            }
+        }
+
+        private void SaveSelection()
+        {
+            if (!_hasSelection || _screen == null)
+            {
+                return;
+            }
+
+            try
+            {
+                using (SaveFileDialog dialog = new SaveFileDialog())
+                {
+                    dialog.Title = "ä¿å­˜æˆªå›¾";
+                    dialog.Filter = "PNG å›¾åƒ (*.png)|*.png|JPEG å›¾åƒ (*.jpg)|*.jpg";
+                    dialog.DefaultExt = "png";
+                    dialog.AddExtension = true;
+                    dialog.FileName = "æˆªå›¾_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".png";
+
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    using (Bitmap cropped = ScreenCapture.Crop(_screen, _selection))
+                    {
+                        SaveImage(cropped, dialog.FileName);
+                    }
+                }
+
+                Finish(true, "æˆªå›¾å·²ä¿å­˜");
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(this, exception.Message, "ä¿å­˜å¤±è´¥", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static void SaveImage(Bitmap image, string path)
+        {
+            bool isJpeg = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase);
+            if (!isJpeg)
+            {
+                image.Save(path, ImageFormat.Png);
+                return;
+            }
+
+            ImageCodecInfo jpegEncoder = null;
+            ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
+            for (int i = 0; i < encoders.Length; i++)
+            {
+                if (encoders[i].FormatID == ImageFormat.Jpeg.Guid)
+                {
+                    jpegEncoder = encoders[i];
+                    break;
+                }
+            }
+
+            if (jpegEncoder == null)
+            {
+                image.Save(path, ImageFormat.Jpeg);
+                return;
+            }
+
+            using (EncoderParameters parameters = new EncoderParameters(1))
+            {
+                parameters.Param[0] = new EncoderParameter(
+                    System.Drawing.Imaging.Encoder.Quality,
+                    JpegQuality);
+                image.Save(path, jpegEncoder, parameters);
+            }
+        }
+
+        private Rectangle FindWindowAt(Point point)
+        {
+            for (int i = 0; i < _windowRectangles.Count; i++)
+            {
+                if (_windowRectangles[i].Contains(point))
+                {
+                    return _windowRectangles[i];
+                }
+            }
+
+            // Keep window snapping responsive around thin borders and shadows. Exact hits are
+            // always preferred, then the topmost window within a small magnetic edge radius.
+            for (int i = 0; i < _windowRectangles.Count; i++)
+            {
+                Rectangle magneticBounds = _windowRectangles[i];
+                magneticBounds.Inflate(WindowMagnetRadius, WindowMagnetRadius);
+                if (magneticBounds.Contains(point))
+                {
+                    return _windowRectangles[i];
+                }
+            }
+
+            Screen monitor = Screen.FromPoint(PointToScreen(point));
+            Rectangle bounds = monitor.Bounds;
+            return new Rectangle(
+                bounds.Left - _virtualScreen.Left,
+                bounds.Top - _virtualScreen.Top,
+                bounds.Width,
+                bounds.Height);
+        }
+
+        private void Finish(bool succeeded, string message)
+        {
+            if (!_captureActive)
+            {
+                return;
+            }
+
+            _captureActive = false;
+            _windowTrackingTimer.Stop();
+            Capture = false;
+            Hide();
+            DisposeCapturedScreen();
+            ResetSelection();
+
+            EventHandler<CaptureStatusEventArgs> handler = CaptureFinished;
+            if (handler != null)
+            {
+                handler(this, new CaptureStatusEventArgs(succeeded, message));
+            }
+        }
+
+        private void ResetSelection()
+        {
+            _hoverRectangle = Rectangle.Empty;
+            _selection = Rectangle.Empty;
+            _mouseDown = false;
+            _dragging = false;
+            _hasSelection = false;
+            _hoverAction = ToolbarAction.None;
+            _hasTrackedCursor = false;
+            _hasMagnifierPoint = false;
+            Cursor = Cursors.Cross;
+        }
+
+        private void DisposeCapturedScreen()
+        {
+            if (_screen != null)
+            {
+                _screen.Dispose();
+                _screen = null;
+            }
+        }
+
+        private Point ClampToClient(Point point)
+        {
+            return new Point(
+                Math.Max(0, Math.Min(ClientSize.Width, point.X)),
+                Math.Max(0, Math.Min(ClientSize.Height, point.Y)));
+        }
+
+        private static Rectangle RectangleFromPoints(Point first, Point second)
+        {
+            return Rectangle.FromLTRB(
+                Math.Min(first.X, second.X),
+                Math.Min(first.Y, second.Y),
+                Math.Max(first.X, second.X),
+                Math.Max(first.Y, second.Y));
+        }
+
+        private void InvalidateSelectionTransition(Rectangle oldRectangle, Rectangle newRectangle, bool includeToolbar)
+        {
+            if (oldRectangle.IsEmpty && newRectangle.IsEmpty)
+            {
+                return;
+            }
+
+            Region changed = oldRectangle.IsEmpty
+                ? new Region(newRectangle)
+                : new Region(oldRectangle);
+            try
+            {
+                if (!newRectangle.IsEmpty && !oldRectangle.IsEmpty)
+                {
+                    changed.Xor(newRectangle);
+                }
+
+                AddSelectionChrome(changed, oldRectangle, includeToolbar);
+                AddSelectionChrome(changed, newRectangle, includeToolbar);
+                Invalidate(changed);
+            }
+            finally
+            {
+                changed.Dispose();
+            }
+        }
+
+        private void InvalidateSelectionChrome(Rectangle rectangle, bool includeToolbar)
+        {
+            if (rectangle.IsEmpty)
+            {
+                return;
+            }
+
+            Region chrome = new Region(Rectangle.Empty);
+            try
+            {
+                AddSelectionChrome(chrome, rectangle, includeToolbar);
+                Invalidate(chrome);
+            }
+            finally
+            {
+                chrome.Dispose();
+            }
+        }
+
+        private void AddSelectionChrome(Region region, Rectangle rectangle, bool includeToolbar)
+        {
+            if (rectangle.IsEmpty)
+            {
+                return;
+            }
+
+            const int edge = 5;
+            region.Union(new Rectangle(rectangle.Left - edge, rectangle.Top - edge, rectangle.Width + edge * 2, edge * 2));
+            region.Union(new Rectangle(rectangle.Left - edge, rectangle.Bottom - edge, rectangle.Width + edge * 2, edge * 2));
+            region.Union(new Rectangle(rectangle.Left - edge, rectangle.Top, edge * 2, rectangle.Height));
+            region.Union(new Rectangle(rectangle.Right - edge, rectangle.Top, edge * 2, rectangle.Height));
+            region.Union(GetDimensionLabelBounds(rectangle));
+            if (includeToolbar)
+            {
+                region.Union(GetToolbarBounds(rectangle));
+            }
+        }
+
+        private Rectangle GetDimensionLabelBounds(Rectangle rectangle)
+        {
+            string dimensions = rectangle.Width + " Ã— " + rectangle.Height;
+            Size size = TextRenderer.MeasureText(
+                dimensions,
+                _utilityFont,
+                Size.Empty,
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+
+            Rectangle label = new Rectangle(
+                rectangle.Left,
+                rectangle.Top - size.Height - 10,
+                size.Width + 14,
+                size.Height + 6);
+            if (label.Top < 4)
+            {
+                label.Y = rectangle.Top + 6;
+            }
+            return label;
+        }
+
+        private static GraphicsPath RoundedRectangle(Rectangle rectangle, int radius)
+        {
+            int diameter = radius * 2;
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(rectangle.Left, rectangle.Top, diameter, diameter, 180, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Top, diameter, diameter, 270, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rectangle.Left, rectangle.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    internal sealed class CaptureStatusEventArgs : EventArgs
+    {
+        internal CaptureStatusEventArgs(bool succeeded, string message)
+        {
+            Succeeded = succeeded;
+            Message = message;
+        }
+
+        internal bool Succeeded { get; private set; }
+        internal string Message { get; private set; }
+    }
+}
