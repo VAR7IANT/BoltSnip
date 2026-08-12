@@ -192,44 +192,22 @@ namespace BoltSnip
                 return;
             }
 
+            ToolbarAction completionAction = GetSelectionClickAction(e.Button, e.Location);
+            if (completionAction != ToolbarAction.None)
+            {
+                PerformToolbarAction(completionAction);
+                return;
+            }
+
             if (e.Button == MouseButtons.Right)
             {
-                if (_hasSelection)
-                {
-                    Rectangle old = _selection;
-                    InvalidateSelectionTransition(old, Rectangle.Empty, true);
-                    ResetSelection();
-                }
-                else
-                {
-                    Finish(false, "已取消");
-                }
+                Finish(false, "已取消");
                 return;
             }
 
             if (e.Button != MouseButtons.Left)
             {
                 return;
-            }
-
-            ToolbarAction action = HitTestToolbar(e.Location);
-            if (_hasSelection && action != ToolbarAction.None)
-            {
-                PerformToolbarAction(action);
-                return;
-            }
-
-            if (_hasSelection && _selection.Contains(e.Location))
-            {
-                return;
-            }
-
-            if (_hasSelection)
-            {
-                Rectangle oldSelection = _selection;
-                _hasSelection = false;
-                _hoverRectangle = FindWindowAt(e.Location);
-                InvalidateSelectionTransition(oldSelection, _hoverRectangle, false);
             }
 
             _mouseDown = true;
@@ -418,8 +396,8 @@ namespace BoltSnip
                 graphics.FillPath(_toolbarBrush, path);
             }
 
-            DrawToolbarButton(graphics, ToolbarAction.Copy, "复制  Enter", 0);
-            DrawToolbarButton(graphics, ToolbarAction.Save, "保存", 1);
+            DrawToolbarButton(graphics, ToolbarAction.Copy, "复制 · 左键", 0);
+            DrawToolbarButton(graphics, ToolbarAction.Save, "保存 · 右键", 1);
             DrawToolbarButton(graphics, ToolbarAction.Cancel, "取消", 2);
         }
 
@@ -445,7 +423,7 @@ namespace BoltSnip
 
         private Rectangle GetToolbarBounds(Rectangle selection)
         {
-            const int width = 224;
+            const int width = 244;
             const int height = 40;
             int x = selection.Right - width;
             int y = selection.Bottom + 9;
@@ -462,7 +440,7 @@ namespace BoltSnip
         private Rectangle GetToolbarButtonBounds(int index)
         {
             Rectangle toolbar = GetToolbarBounds(_selection);
-            int[] widths = { 100, 60, 60 };
+            int[] widths = { 100, 80, 60 };
             int x = toolbar.Left + 2;
             for (int i = 0; i < index; i++)
             {
@@ -482,6 +460,29 @@ namespace BoltSnip
             if (GetToolbarButtonBounds(1).Contains(location)) return ToolbarAction.Save;
             if (GetToolbarButtonBounds(2).Contains(location)) return ToolbarAction.Cancel;
             return ToolbarAction.None;
+        }
+
+        private ToolbarAction GetSelectionClickAction(MouseButtons button, Point location)
+        {
+            if (!_hasSelection)
+            {
+                return ToolbarAction.None;
+            }
+
+            if (button == MouseButtons.Right)
+            {
+                return ToolbarAction.Save;
+            }
+
+            if (button != MouseButtons.Left)
+            {
+                return ToolbarAction.None;
+            }
+
+            ToolbarAction toolbarAction = HitTestToolbar(location);
+            return toolbarAction == ToolbarAction.None
+                ? ToolbarAction.Copy
+                : toolbarAction;
         }
 
         private void PerformToolbarAction(ToolbarAction action)
