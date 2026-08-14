@@ -295,8 +295,8 @@ namespace BoltSnip
             {
                 if (_showSelectionMagnifier)
                 {
-                    Rectangle oldMagnifier = GetMagnifierBounds(_magnifierPoint);
-                    oldMagnifier.Inflate(2, 2);
+                    Rectangle oldMagnifier = GetMagnifierCleanupBounds(
+                        GetMagnifierBounds(_magnifierPoint));
                     _showSelectionMagnifier = false;
                     Invalidate(oldMagnifier);
                 }
@@ -370,7 +370,7 @@ namespace BoltSnip
             InvalidateSelectionChrome(_selection, true);
             if (!magnifierBounds.IsEmpty)
             {
-                Invalidate(magnifierBounds);
+                Invalidate(GetMagnifierCleanupBounds(magnifierBounds));
             }
         }
 
@@ -576,12 +576,11 @@ namespace BoltSnip
         {
             if (oldBounds.IsEmpty)
             {
-                newBounds.Inflate(2, 2);
-                return new[] { newBounds };
+                return new[] { GetMagnifierCleanupBounds(newBounds) };
             }
 
-            oldBounds.Inflate(2, 2);
-            newBounds.Inflate(2, 2);
+            oldBounds = GetMagnifierCleanupBounds(oldBounds);
+            newBounds = GetMagnifierCleanupBounds(newBounds);
             if (oldBounds == newBounds)
             {
                 return new[] { newBounds };
@@ -590,6 +589,17 @@ namespace BoltSnip
             // Keep the two repaint areas separate. A union would redraw the full strip between
             // the old and new cursor positions during fast movement on large displays.
             return new[] { oldBounds, newBounds };
+        }
+
+        private static Rectangle GetMagnifierCleanupBounds(Rectangle bounds)
+        {
+            if (!bounds.IsEmpty)
+            {
+                // DrawPath centers the anti-aliased border on the path, so some edge
+                // pixels land just outside the nominal magnifier rectangle.
+                bounds.Inflate(2, 2);
+            }
+            return bounds;
         }
 
         private Rectangle GetMagnifierBounds(Point point)
@@ -877,12 +887,11 @@ namespace BoltSnip
             InvalidateSelectionTransition(oldSelection, _selection, true);
             if (!oldMagnifier.IsEmpty)
             {
-                oldMagnifier.Inflate(2, 2);
-                Invalidate(oldMagnifier);
+                Invalidate(GetMagnifierCleanupBounds(oldMagnifier));
             }
 
-            Rectangle newMagnifier = GetMagnifierBounds(_magnifierPoint);
-            newMagnifier.Inflate(2, 2);
+            Rectangle newMagnifier = GetMagnifierCleanupBounds(
+                GetMagnifierBounds(_magnifierPoint));
             Invalidate(newMagnifier);
         }
 

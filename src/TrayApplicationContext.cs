@@ -28,7 +28,7 @@ namespace BoltSnip
 
             _menuFont = new Font("Microsoft YaHei UI", 9.25f, FontStyle.Regular, GraphicsUnit.Point);
             _menuBoldFont = new Font(_menuFont, FontStyle.Bold);
-            _trayMenu = new ContextMenuStrip();
+            _trayMenu = new BoltSnipContextMenuStrip();
             BoltSnipMenuStyle.Apply(_trayMenu, _menuFont);
             _captureMenuItem = new ToolStripMenuItem();
             _captureMenuItem.Font = _menuBoldFont;
