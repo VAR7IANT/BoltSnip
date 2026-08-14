@@ -7,6 +7,10 @@ namespace BoltSnip
 {
     internal static class BoltSnipMenuStyle
     {
+        internal const int CornerRadius = 12;
+        internal const int ItemCornerRadius = 9;
+        internal const int CheckCornerRadius = 6;
+
         internal static readonly Color SurfaceColor = Color.FromArgb(250, 252, 253);
         internal static readonly Color TextColor = Color.FromArgb(32, 40, 45);
         internal static readonly Color MutedTextColor = Color.FromArgb(102, 116, 123);
@@ -40,6 +44,72 @@ namespace BoltSnip
         {
             separator.Margin = new Padding(0, 5, 0, 5);
         }
+
+        internal static GraphicsPath RoundedRectangle(Rectangle rectangle, int radius)
+        {
+            int diameter = Math.Min(radius * 2, Math.Min(rectangle.Width, rectangle.Height));
+            GraphicsPath path = new GraphicsPath();
+            if (diameter <= 0)
+            {
+                path.AddRectangle(rectangle);
+                return path;
+            }
+
+            path.AddArc(rectangle.Left, rectangle.Top, diameter, diameter, 180, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Top, diameter, diameter, 270, 90);
+            path.AddArc(rectangle.Right - diameter, rectangle.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rectangle.Left, rectangle.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    internal sealed class BoltSnipContextMenuStrip : ContextMenuStrip
+    {
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateRoundedRegion();
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (Visible)
+            {
+                UpdateRoundedRegion();
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && Region != null)
+            {
+                Region current = Region;
+                Region = null;
+                current.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void UpdateRoundedRegion()
+        {
+            if (Width <= 0 || Height <= 0)
+            {
+                return;
+            }
+
+            Rectangle bounds = new Rectangle(0, 0, Width, Height);
+            using (GraphicsPath path = BoltSnipMenuStyle.RoundedRectangle(bounds, BoltSnipMenuStyle.CornerRadius))
+            {
+                Region previous = Region;
+                Region = new Region(path);
+                if (previous != null)
+                {
+                    previous.Dispose();
+                }
+            }
+        }
     }
 
     internal sealed class BoltSnipMenuRenderer : ToolStripProfessionalRenderer
@@ -49,6 +119,8 @@ namespace BoltSnip
         internal BoltSnipMenuRenderer()
             : base(new BoltSnipColorTable())
         {
+            // The menu owns a precise rounded Region; disable the renderer's legacy
+            // two-pixel corner treatment so it cannot replace that shape.
             RoundedEdges = false;
         }
 
@@ -62,13 +134,13 @@ namespace BoltSnip
             Rectangle bounds = new Rectangle(3, 1, e.Item.Width - 6, e.Item.Height - 2);
             SmoothingMode previous = e.Graphics.SmoothingMode;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using (GraphicsPath path = RoundedRectangle(bounds, 7))
+            using (GraphicsPath path = BoltSnipMenuStyle.RoundedRectangle(bounds, BoltSnipMenuStyle.ItemCornerRadius))
             using (Brush hover = new SolidBrush(BoltSnipMenuStyle.HoverColor))
             using (Brush accent = new SolidBrush(BoltSnipMenuStyle.AccentColor))
             {
                 e.Graphics.FillPath(hover, path);
                 Rectangle rail = new Rectangle(bounds.Left + 3, bounds.Top + 6, 3, Math.Max(6, bounds.Height - 12));
-                using (GraphicsPath railPath = RoundedRectangle(rail, 2))
+                using (GraphicsPath railPath = BoltSnipMenuStyle.RoundedRectangle(rail, 2))
                 {
                     e.Graphics.FillPath(accent, railPath);
                 }
@@ -96,7 +168,7 @@ namespace BoltSnip
             SmoothingMode previous = e.Graphics.SmoothingMode;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (Brush background = new SolidBrush(BoltSnipMenuStyle.AccentColor))
-            using (GraphicsPath boxPath = RoundedRectangle(box, 5))
+            using (GraphicsPath boxPath = BoltSnipMenuStyle.RoundedRectangle(box, BoltSnipMenuStyle.CheckCornerRadius))
             using (Pen check = new Pen(Color.White, 2f))
             {
                 check.StartCap = LineCap.Round;
@@ -130,28 +202,14 @@ namespace BoltSnip
         protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
         {
             Rectangle border = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+            SmoothingMode previous = e.Graphics.SmoothingMode;
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (GraphicsPath path = BoltSnipMenuStyle.RoundedRectangle(border, BoltSnipMenuStyle.CornerRadius))
             using (Pen outline = new Pen(BoltSnipMenuStyle.DividerColor))
             {
-                e.Graphics.DrawRectangle(outline, border);
+                e.Graphics.DrawPath(outline, path);
             }
-        }
-
-        private static GraphicsPath RoundedRectangle(Rectangle rectangle, int radius)
-        {
-            int diameter = Math.Min(radius * 2, Math.Min(rectangle.Width, rectangle.Height));
-            GraphicsPath path = new GraphicsPath();
-            if (diameter <= 0)
-            {
-                path.AddRectangle(rectangle);
-                return path;
-            }
-
-            path.AddArc(rectangle.Left, rectangle.Top, diameter, diameter, 180, 90);
-            path.AddArc(rectangle.Right - diameter, rectangle.Top, diameter, diameter, 270, 90);
-            path.AddArc(rectangle.Right - diameter, rectangle.Bottom - diameter, diameter, diameter, 0, 90);
-            path.AddArc(rectangle.Left, rectangle.Bottom - diameter, diameter, diameter, 90, 90);
-            path.CloseFigure();
-            return path;
+            e.Graphics.SmoothingMode = previous;
         }
 
         private sealed class BoltSnipColorTable : ProfessionalColorTable

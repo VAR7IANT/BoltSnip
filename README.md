@@ -36,6 +36,15 @@ BoltSnip 是一款追求“按下快捷键，马上拿到截图”的 Windows �
 6. `Shift + 右键` 或 `Ctrl+S` 可另存为，`Esc` 取消。
 7. 右键托盘图标可设置快捷键、快速保存目录、开机启动或退出。
 
+## 安装
+
+从 GitHub Releases 下载 `BoltSnip-Setup-0.12.0-win-x64.exe` 并运行。安装器默认将
+BoltSnip 安装到当前用户的 `%LOCALAPPDATA%\Programs\BoltSnip`，无需管理员权限，并创建
+开始菜单快捷方式；桌面快捷方式可在安装时选择。
+
+卸载 BoltSnip 时会移除程序文件、快捷方式和开机启动项，但会保留个人快捷键与保存目录
+设置，方便以后重新安装。
+
 ## 快捷键设置
 
 右键系统托盘中的 BoltSnip 图标，选择“设置快捷键…”，然后在输入框中直接按下新的组合键。快捷键至少需要包含 `Ctrl`、`Alt` 或 `Shift` 中的一项；如果组合键已被其他程序占用，BoltSnip 会保留原快捷键并提示更换。
@@ -70,6 +79,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 构建结果位于 `bin\BoltSnip.exe`。构建过程使用 Windows 自带的 .NET Framework C# 编译器，无需下载依赖。
+
+构建 Windows 安装包需要 Inno Setup 7。安装后运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-installer.ps1
+```
+
+安装包输出到 `dist\BoltSnip-Setup-0.12.0-win-x64.exe`。
 
 ## 仓库简介
 

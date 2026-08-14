@@ -1,4 +1,5 @@
 bin/
+dist/
 obj/
 *.user
 *.suo
