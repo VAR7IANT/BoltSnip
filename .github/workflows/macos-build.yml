@@ -1,0 +1,30 @@
+name: macOS Build
+
+on:
+  pull_request:
+    paths:
+      - "macOS/**"
+      - ".github/workflows/macos-build.yml"
+  push:
+    paths:
+      - "macOS/**"
+      - ".github/workflows/macos-build.yml"
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Compile Swift package
+        working-directory: macOS
+        run: swift build
+
+      - name: Build app bundle
+        working-directory: macOS
+        run: ./build-macos.sh
