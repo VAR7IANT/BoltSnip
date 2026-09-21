@@ -1,9 +1,11 @@
 param(
-    [string]$Version = '0.12.0',
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist')
 )
 
 $ErrorActionPreference = 'Stop'
+$identity = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'release.json') | ConvertFrom-Json
+$Version = [string]$identity.Version
+$ProductName = [string]$identity.ProductName
 
 $innoCompilerCandidates = @(
     (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe'),
@@ -32,6 +34,7 @@ if ($LASTEXITCODE -ne 0) {
 $installerScript = Join-Path $PSScriptRoot 'installer\BoltSnip.iss'
 $arguments = @(
     ('/DAppVersion=' + $Version),
+    ('/DProductName=' + $ProductName),
     ('/DSourceExecutable=' + $executable),
     ('/O' + $resolvedOutputDirectory),
     $installerScript

@@ -38,7 +38,7 @@ BoltSnip 是一款追求“按下快捷键，马上拿到截图”的 Windows �
 
 ## 安装
 
-从 GitHub Releases 下载 `BoltSnip-Setup-0.12.0-win-x64.exe` 并运行。安装器默认将
+从 GitHub Releases 下载 `BoltSnip-Setup-<version>-win-x64.exe` 并运行。安装器默认将
 BoltSnip 安装到当前用户的 `%LOCALAPPDATA%\Programs\BoltSnip`，无需管理员权限，并创建
 开始菜单快捷方式；桌面快捷方式可在安装时选择。
 
@@ -86,7 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-installer.ps1
 ```
 
-安装包输出到 `dist\BoltSnip-Setup-0.12.0-win-x64.exe`。
+安装包输出到 `dist\BoltSnip-Setup-<version>-win-x64.exe`，版本取自 `release.json`。
 
 ## 仓库简介
 

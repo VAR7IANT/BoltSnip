@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -29,6 +30,45 @@ namespace BoltSnip
             Cancel
         }
 
+        private sealed class DirtyRegionAccumulator : IDisposable
+        {
+            private readonly Region _region = new Region(Rectangle.Empty);
+
+            internal bool HasArea { get; private set; }
+
+            internal Region Region
+            {
+                get { return _region; }
+            }
+
+            internal void Add(Rectangle bounds)
+            {
+                if (bounds.IsEmpty)
+                {
+                    return;
+                }
+
+                _region.Union(bounds);
+                HasArea = true;
+            }
+
+            internal void Add(Region region)
+            {
+                if (region == null)
+                {
+                    return;
+                }
+
+                _region.Union(region);
+                HasArea = true;
+            }
+
+            public void Dispose()
+            {
+                _region.Dispose();
+            }
+        }
+
         private readonly Brush _shadeBrush = new SolidBrush(Color.FromArgb(116, 10, 16, 22));
         private readonly Brush _labelBrush = new SolidBrush(Color.FromArgb(226, 20, 26, 32));
         private readonly Brush _toolbarBrush = new SolidBrush(Color.FromArgb(242, 246, 248, 250));
@@ -40,10 +80,17 @@ namespace BoltSnip
         private readonly Pen _magnifierBorderPen = new Pen(Color.FromArgb(210, 255, 255, 255), 1f);
         private readonly Pen _magnifierGridPen = new Pen(Color.FromArgb(58, 255, 255, 255), 1f);
         private readonly Pen _magnifierCrosshairPen = new Pen(Color.FromArgb(255, 52, 190, 208), 2f);
+        private readonly GuideColorAnalyzer _guideColorAnalyzer = new GuideColorAnalyzer();
+        private readonly Pen _alignmentGuidePen = CreateAlignmentGuidePen();
+        private readonly Region _pendingPaintRegion = new Region(Rectangle.Empty);
         private readonly Font _utilityFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
         private readonly Font _toolbarFont = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
         private readonly Timer _windowTrackingTimer;
         private readonly Func<string> _saveDirectoryProvider;
+        private readonly Func<Rectangle, Bitmap> _screenCaptureProvider;
+        private readonly Func<Rectangle, List<Rectangle>> _windowSnapshotProvider;
+        private readonly Action _coordinateInitializationHook;
+        private readonly Action _showOverlayHook;
 
         private Bitmap _screen;
         private Rectangle _virtualScreen;
@@ -61,6 +108,11 @@ namespace BoltSnip
         private Point _magnifierPoint;
         private bool _hasMagnifierPoint;
         private bool _showSelectionMagnifier;
+        private Point _alignmentGuidePoint;
+        private Rectangle _alignmentGuideScreen = Rectangle.Empty;
+        private bool _hasAlignmentGuidePoint;
+        private bool _hasPendingPaintRegion;
+        private long _captureStartedTimestamp;
 
         internal CaptureOverlay()
             : this(delegate { return AppSettings.DefaultSaveDirectory; })
@@ -68,13 +120,40 @@ namespace BoltSnip
         }
 
         internal CaptureOverlay(Func<string> saveDirectoryProvider)
+            : this(
+                saveDirectoryProvider,
+                ScreenCapture.Capture,
+                WindowProbe.Snapshot,
+                null,
+                null)
+        {
+        }
+
+        internal CaptureOverlay(
+            Func<string> saveDirectoryProvider,
+            Func<Rectangle, Bitmap> screenCaptureProvider,
+            Func<Rectangle, List<Rectangle>> windowSnapshotProvider,
+            Action coordinateInitializationHook,
+            Action showOverlayHook)
         {
             if (saveDirectoryProvider == null)
             {
                 throw new ArgumentNullException("saveDirectoryProvider");
             }
+            if (screenCaptureProvider == null)
+            {
+                throw new ArgumentNullException("screenCaptureProvider");
+            }
+            if (windowSnapshotProvider == null)
+            {
+                throw new ArgumentNullException("windowSnapshotProvider");
+            }
 
             _saveDirectoryProvider = saveDirectoryProvider;
+            _screenCaptureProvider = screenCaptureProvider;
+            _windowSnapshotProvider = windowSnapshotProvider;
+            _coordinateInitializationHook = coordinateInitializationHook;
+            _showOverlayHook = showOverlayHook;
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
@@ -117,26 +196,77 @@ namespace BoltSnip
                 return;
             }
 
-            ResetSelection();
-            _virtualScreen = SystemInformation.VirtualScreen;
-
-            Bitmap captured = ScreenCapture.Capture(_virtualScreen);
-            List<Rectangle> windows;
+            Bitmap captured = null;
+            bool initialized = false;
+            _captureStartedTimestamp = Stopwatch.GetTimestamp();
+            CaptureDiagnostics.Write("Capture Start", string.Empty);
             try
             {
-                windows = WindowProbe.Snapshot(_virtualScreen);
+                ResetSelection();
+                _virtualScreen = SystemInformation.VirtualScreen;
+
+                captured = _screenCaptureProvider(_virtualScreen);
+                if (captured == null)
+                {
+                    throw new InvalidOperationException("Screen capture returned no bitmap.");
+                }
+
+                List<Rectangle> windows = _windowSnapshotProvider(_virtualScreen);
+                if (windows == null)
+                {
+                    throw new InvalidOperationException("Window snapshot returned no result.");
+                }
+
+                DisposeCapturedScreen();
+                _screen = captured;
+                captured = null;
+                _windowRectangles = windows;
+                _captureActive = true;
+
+                InitializeCaptureCoordinates();
+                ShowCaptureOverlay();
+                CaptureDiagnostics.Write(
+                    "Overlay Show",
+                    "elapsedMs=" + CaptureDiagnostics.ElapsedMilliseconds(_captureStartedTimestamp).ToString("F2"));
+                NativeMethods.SetForegroundWindow(Handle);
+                Activate();
+                Focus();
+                _windowTrackingTimer.Start();
+                InvalidateFullOverlay();
+                initialized = true;
             }
-            catch
+            catch (Exception exception)
             {
-                captured.Dispose();
+                CaptureDiagnostics.Write(
+                    "Capture Failed",
+                    CaptureDiagnostics.ExceptionDetails("Initialization", exception));
                 throw;
             }
+            finally
+            {
+                if (!initialized)
+                {
+                    try
+                    {
+                        if (captured != null)
+                        {
+                            captured.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        RollbackFailedCapture();
+                    }
+                }
+            }
+        }
 
-            DisposeCapturedScreen();
-            _screen = captured;
-            _windowRectangles = windows;
-            _captureActive = true;
-
+        private void InitializeCaptureCoordinates()
+        {
+            if (_coordinateInitializationHook != null)
+            {
+                _coordinateInitializationHook();
+            }
             Bounds = _virtualScreen;
             Point cursor = Cursor.Position;
             Point clientCursor = new Point(
@@ -144,57 +274,115 @@ namespace BoltSnip
                 cursor.Y - _virtualScreen.Top);
             _hoverRectangle = FindWindowAt(clientCursor);
             UpdateMagnifier(clientCursor);
+            UpdateAlignmentGuides(clientCursor);
+        }
+
+        private void ShowCaptureOverlay()
+        {
+            if (_showOverlayHook != null)
+            {
+                _showOverlayHook();
+                return;
+            }
+
             Show();
-            NativeMethods.SetForegroundWindow(Handle);
-            Activate();
-            Focus();
-            _windowTrackingTimer.Start();
-            Invalidate();
+        }
+
+        private void RollbackFailedCapture()
+        {
+            CleanupCaptureState();
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);
+            try
+            {
+                base.OnPaint(e);
+                PaintOverlay(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("Paint", exception);
+            }
+        }
+
+        private void PaintOverlay(PaintEventArgs e)
+        {
             if (_screen == null)
             {
                 return;
             }
 
             Graphics graphics = e.Graphics;
-            graphics.CompositingQuality = CompositingQuality.HighSpeed;
-            graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-            graphics.PixelOffsetMode = PixelOffsetMode.Half;
-
-            GraphicsState state = graphics.Save();
-            graphics.SetClip(e.ClipRectangle);
-            graphics.DrawImageUnscaled(_screen, 0, 0);
-            graphics.FillRectangle(_shadeBrush, e.ClipRectangle);
-
-            Rectangle active = ActiveRectangle;
-            if (!active.IsEmpty)
+            GraphicsState paintState = graphics.Save();
+            try
             {
-                Rectangle visible = Rectangle.Intersect(active, e.ClipRectangle);
-                if (!visible.IsEmpty)
+                ApplyPendingPaintClip(graphics, e.ClipRectangle);
+                graphics.CompositingQuality = CompositingQuality.HighSpeed;
+                graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                graphics.PixelOffsetMode = PixelOffsetMode.Half;
+
+                GraphicsState backgroundState = graphics.Save();
+                Rectangle active = ActiveRectangle;
+                try
                 {
-                    graphics.DrawImage(
-                        _screen,
-                        visible,
-                        visible,
-                        GraphicsUnit.Pixel);
+                    graphics.DrawImageUnscaled(_screen, 0, 0);
+                    graphics.FillRectangle(_shadeBrush, e.ClipRectangle);
+
+                    if (!active.IsEmpty)
+                    {
+                        Rectangle visible = Rectangle.Intersect(active, e.ClipRectangle);
+                        if (!visible.IsEmpty)
+                        {
+                            graphics.DrawImage(
+                                _screen,
+                                visible,
+                                visible,
+                                GraphicsUnit.Pixel);
+                        }
+                    }
+                }
+                finally
+                {
+                    graphics.Restore(backgroundState);
+                }
+
+                if (_captureActive && _hasAlignmentGuidePoint)
+                {
+                    DrawAlignmentGuides(graphics, _alignmentGuidePoint, _alignmentGuideScreen);
+                }
+
+                if (!active.IsEmpty)
+                {
+                    DrawSelectionChrome(graphics, active);
+                }
+
+                if (_captureActive && _hasMagnifierPoint &&
+                    (!_hasSelection || _showSelectionMagnifier))
+                {
+                    DrawMagnifier(graphics, _magnifierPoint);
                 }
             }
-            graphics.Restore(state);
-
-            if (!active.IsEmpty)
+            finally
             {
-                DrawSelectionChrome(graphics, active);
+                graphics.Restore(paintState);
+            }
+        }
+
+        private void ApplyPendingPaintClip(Graphics graphics, Rectangle fallbackClip)
+        {
+            if (_hasPendingPaintRegion)
+            {
+                using (Region pending = _pendingPaintRegion.Clone())
+                {
+                    _pendingPaintRegion.MakeEmpty();
+                    _hasPendingPaintRegion = false;
+                    graphics.SetClip(pending, CombineMode.Intersect);
+                }
+                return;
             }
 
-            if (_captureActive && _hasMagnifierPoint &&
-                (!_hasSelection || _showSelectionMagnifier))
-            {
-                DrawMagnifier(graphics, _magnifierPoint);
-            }
+            graphics.SetClip(fallbackClip, CombineMode.Intersect);
         }
 
         protected override void Dispose(bool disposing)
@@ -213,6 +401,8 @@ namespace BoltSnip
                 _magnifierBorderPen.Dispose();
                 _magnifierGridPen.Dispose();
                 _magnifierCrosshairPen.Dispose();
+                _alignmentGuidePen.Dispose();
+                _pendingPaintRegion.Dispose();
                 _utilityFont.Dispose();
                 _toolbarFont.Dispose();
                 _windowTrackingTimer.Dispose();
@@ -226,7 +416,142 @@ namespace BoltSnip
             get { return _hasSelection || _dragging ? _selection : _hoverRectangle; }
         }
 
+        private static Pen CreateAlignmentGuidePen()
+        {
+            // Keep this token centralized so a future theme can replace it without
+            // changing the guide lifecycle or rendering code.
+            Pen pen = new Pen(GuideColorAnalyzer.DefaultGuideColor, 1f);
+            pen.DashStyle = DashStyle.Custom;
+            pen.DashPattern = new[] { 2f, 3f };
+            pen.DashCap = DashCap.Flat;
+            return pen;
+        }
+
+        private void DrawAlignmentGuides(Graphics graphics, Point point, Rectangle screenBounds)
+        {
+            if (screenBounds.Width <= 0 || screenBounds.Height <= 0)
+            {
+                return;
+            }
+
+            GraphicsState state = graphics.Save();
+            try
+            {
+                // OnPaint uses Half for pixel-perfect screenshot sampling. A one-pixel
+                // guide drawn with that offset lands one pixel above/left of its requested
+                // coordinate, outside the matching invalidation rectangle, and is never
+                // cleared. Isolate guide rasterization so paint and cleanup use the same pixel.
+                graphics.PixelOffsetMode = PixelOffsetMode.Default;
+                graphics.DrawLine(
+                    _alignmentGuidePen,
+                    screenBounds.Left,
+                    point.Y,
+                    screenBounds.Right - 1,
+                    point.Y);
+                graphics.DrawLine(
+                    _alignmentGuidePen,
+                    point.X,
+                    screenBounds.Top,
+                    point.X,
+                    screenBounds.Bottom - 1);
+            }
+            finally
+            {
+                graphics.Restore(state);
+            }
+        }
+
+        private void UpdateAlignmentGuides(Point location)
+        {
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+            {
+                UpdateAlignmentGuides(location, dirty);
+                InvalidateDirtyRegion(dirty);
+            }
+        }
+
+        private void UpdateAlignmentGuides(Point location, DirtyRegionAccumulator dirty)
+        {
+            if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            {
+                return;
+            }
+
+            Point point = new Point(
+                Math.Max(0, Math.Min(ClientSize.Width - 1, location.X)),
+                Math.Max(0, Math.Min(ClientSize.Height - 1, location.Y)));
+            Screen monitor = Screen.FromPoint(PointToScreen(point));
+            Rectangle monitorBounds = monitor.Bounds;
+            Rectangle screenBounds = new Rectangle(
+                monitorBounds.Left - _virtualScreen.Left,
+                monitorBounds.Top - _virtualScreen.Top,
+                monitorBounds.Width,
+                monitorBounds.Height);
+            screenBounds = Rectangle.Intersect(ClientRectangle, screenBounds);
+
+            Point oldPoint = _alignmentGuidePoint;
+            Rectangle oldScreen = _alignmentGuideScreen;
+            bool hadPoint = _hasAlignmentGuidePoint;
+            bool colorChanged = _screen != null && _guideColorAnalyzer.TryUpdate(_screen, point);
+            if (colorChanged)
+            {
+                _alignmentGuidePen.Color = _guideColorAnalyzer.CachedColor;
+            }
+
+            if (hadPoint && oldPoint == point && oldScreen == screenBounds && !colorChanged)
+            {
+                return;
+            }
+
+            _alignmentGuidePoint = point;
+            _alignmentGuideScreen = screenBounds;
+            _hasAlignmentGuidePoint = true;
+
+            if (hadPoint)
+            {
+                if (colorChanged || oldScreen != screenBounds || oldPoint.Y != point.Y)
+                {
+                    dirty.Add(GetHorizontalAlignmentGuideBounds(oldPoint, oldScreen));
+                }
+                if (colorChanged || oldScreen != screenBounds || oldPoint.X != point.X)
+                {
+                    dirty.Add(GetVerticalAlignmentGuideBounds(oldPoint, oldScreen));
+                }
+            }
+
+            if (colorChanged || !hadPoint || oldScreen != screenBounds || oldPoint.Y != point.Y)
+            {
+                dirty.Add(GetHorizontalAlignmentGuideBounds(point, screenBounds));
+            }
+            if (colorChanged || !hadPoint || oldScreen != screenBounds || oldPoint.X != point.X)
+            {
+                dirty.Add(GetVerticalAlignmentGuideBounds(point, screenBounds));
+            }
+        }
+
+        private static Rectangle GetHorizontalAlignmentGuideBounds(Point point, Rectangle screenBounds)
+        {
+            return new Rectangle(screenBounds.Left, point.Y, screenBounds.Width, 1);
+        }
+
+        private static Rectangle GetVerticalAlignmentGuideBounds(Point point, Rectangle screenBounds)
+        {
+            return new Rectangle(point.X, screenBounds.Top, 1, screenBounds.Height);
+        }
+
         private void OverlayMouseDown(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                OverlayMouseDownCore(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("MouseDown", exception);
+            }
+        }
+
+        private void OverlayMouseDownCore(MouseEventArgs e)
         {
             if (!_captureActive)
             {
@@ -262,59 +587,89 @@ namespace BoltSnip
 
         private void OverlayMouseMove(object sender, MouseEventArgs e)
         {
+            try
+            {
+                OverlayMouseMoveCore(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("MouseMove", exception);
+            }
+        }
+
+        private void OverlayMouseMoveCore(MouseEventArgs e)
+        {
             if (!_captureActive)
             {
                 return;
             }
 
-            if (!_hasSelection)
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
             {
-                UpdateMagnifier(e.Location);
+                UpdateAlignmentGuides(e.Location, dirty);
+
+                if (!_hasSelection)
+                {
+                    UpdateMagnifier(e.Location, dirty);
+                }
+
+                if (_mouseDown)
+                {
+                    Point current = ClampToClient(e.Location);
+                    int distance = Math.Abs(current.X - _dragOrigin.X) + Math.Abs(current.Y - _dragOrigin.Y);
+                    if (!_dragging && distance >= 4)
+                    {
+                        _dragging = true;
+                        _hasSelection = false;
+                    }
+
+                    if (_dragging)
+                    {
+                        Rectangle old = _selection;
+                        _selection = RectangleFromPoints(_dragOrigin, current);
+                        AddSelectionTransition(dirty, old, _selection, false);
+                    }
+                }
+                else if (_hasSelection)
+                {
+                    if (_showSelectionMagnifier)
+                    {
+                        Rectangle oldMagnifier = GetMagnifierCleanupBounds(
+                            GetMagnifierBounds(_magnifierPoint));
+                        _showSelectionMagnifier = false;
+                        dirty.Add(oldMagnifier);
+                    }
+
+                    ToolbarAction oldAction = _hoverAction;
+                    _hoverAction = HitTestToolbar(e.Location);
+                    Cursor = _hoverAction == ToolbarAction.None ? Cursors.Cross : Cursors.Hand;
+                    if (oldAction != _hoverAction)
+                    {
+                        dirty.Add(GetToolbarBounds(_selection));
+                    }
+                }
+                else
+                {
+                    TrackWindowAt(e.Location, dirty);
+                }
+
+                InvalidateDirtyRegion(dirty);
             }
-
-            if (_mouseDown)
-            {
-                Point current = ClampToClient(e.Location);
-                int distance = Math.Abs(current.X - _dragOrigin.X) + Math.Abs(current.Y - _dragOrigin.Y);
-                if (!_dragging && distance >= 4)
-                {
-                    _dragging = true;
-                    _hasSelection = false;
-                }
-
-                if (_dragging)
-                {
-                    Rectangle old = _selection;
-                    _selection = RectangleFromPoints(_dragOrigin, current);
-                    InvalidateSelectionTransition(old, _selection, false);
-                }
-                return;
-            }
-
-            if (_hasSelection)
-            {
-                if (_showSelectionMagnifier)
-                {
-                    Rectangle oldMagnifier = GetMagnifierCleanupBounds(
-                        GetMagnifierBounds(_magnifierPoint));
-                    _showSelectionMagnifier = false;
-                    Invalidate(oldMagnifier);
-                }
-
-                ToolbarAction oldAction = _hoverAction;
-                _hoverAction = HitTestToolbar(e.Location);
-                Cursor = _hoverAction == ToolbarAction.None ? Cursors.Cross : Cursors.Hand;
-                if (oldAction != _hoverAction)
-                {
-                    Invalidate(GetToolbarBounds(_selection));
-                }
-                return;
-            }
-
-            TrackWindowAt(e.Location);
         }
 
         private void WindowTrackingTimerTick(object sender, EventArgs e)
+        {
+            try
+            {
+                WindowTrackingTimerTickCore();
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("WindowTracking", exception);
+            }
+        }
+
+        private void WindowTrackingTimerTickCore()
         {
             if (!_captureActive || _mouseDown || _hasSelection)
             {
@@ -328,11 +683,16 @@ namespace BoltSnip
                 return;
             }
 
-            UpdateMagnifier(location);
-            TrackWindowAt(location);
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+            {
+                UpdateMagnifier(location, dirty);
+                UpdateAlignmentGuides(location, dirty);
+                TrackWindowAt(location, dirty);
+                InvalidateDirtyRegion(dirty);
+            }
         }
 
-        private void TrackWindowAt(Point location)
+        private void TrackWindowAt(Point location, DirtyRegionAccumulator dirty)
         {
             _lastTrackedCursor = location;
             _hasTrackedCursor = true;
@@ -341,11 +701,23 @@ namespace BoltSnip
             _hoverRectangle = FindWindowAt(location);
             if (oldHover != _hoverRectangle)
             {
-                InvalidateSelectionTransition(oldHover, _hoverRectangle, false);
+                AddSelectionTransition(dirty, oldHover, _hoverRectangle, false);
             }
         }
 
         private void OverlayMouseUp(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                OverlayMouseUpCore(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("MouseUp", exception);
+            }
+        }
+
+        private void OverlayMouseUpCore(MouseEventArgs e)
         {
             if (!_mouseDown || e.Button != MouseButtons.Left)
             {
@@ -370,11 +742,23 @@ namespace BoltSnip
             InvalidateSelectionChrome(_selection, true);
             if (!magnifierBounds.IsEmpty)
             {
-                Invalidate(GetMagnifierCleanupBounds(magnifierBounds));
+                InvalidateTracked(GetMagnifierCleanupBounds(magnifierBounds));
             }
         }
 
         private void OverlayMouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                OverlayMouseDoubleClickCore(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("MouseDoubleClick", exception);
+            }
+        }
+
+        private void OverlayMouseDoubleClickCore(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left && _hasSelection && _selection.Contains(e.Location))
             {
@@ -383,6 +767,18 @@ namespace BoltSnip
         }
 
         private void OverlayKeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                OverlayKeyDownCore(e);
+            }
+            catch (Exception exception)
+            {
+                RecoverFromCaptureFailure("KeyDown", exception);
+            }
+        }
+
+        private void OverlayKeyDownCore(KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape)
             {
@@ -495,7 +891,7 @@ namespace BoltSnip
                     available.Height * MagnifierScale);
 
                 GraphicsState state = graphics.Save();
-                graphics.SetClip(pixels);
+                graphics.SetClip(pixels, CombineMode.Intersect);
                 graphics.CompositingMode = CompositingMode.SourceCopy;
                 graphics.CompositingQuality = CompositingQuality.HighSpeed;
                 graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
@@ -546,6 +942,15 @@ namespace BoltSnip
 
         private void UpdateMagnifier(Point location)
         {
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+            {
+                UpdateMagnifier(location, dirty);
+                InvalidateDirtyRegion(dirty);
+            }
+        }
+
+        private void UpdateMagnifier(Point location, DirtyRegionAccumulator dirty)
+        {
             Point point = new Point(
                 Math.Max(0, Math.Min(ClientSize.Width - 1, location.X)),
                 Math.Max(0, Math.Min(ClientSize.Height - 1, location.Y)));
@@ -559,14 +964,14 @@ namespace BoltSnip
 
             if (oldBounds.IsEmpty)
             {
-                Invalidate(newBounds);
+                dirty.Add(newBounds);
                 return;
             }
 
             Rectangle[] dirtyRectangles = GetMagnifierInvalidationRectangles(oldBounds, newBounds);
             for (int i = 0; i < dirtyRectangles.Length; i++)
             {
-                Invalidate(dirtyRectangles[i]);
+                dirty.Add(dirtyRectangles[i]);
             }
         }
 
@@ -887,12 +1292,12 @@ namespace BoltSnip
             InvalidateSelectionTransition(oldSelection, _selection, true);
             if (!oldMagnifier.IsEmpty)
             {
-                Invalidate(GetMagnifierCleanupBounds(oldMagnifier));
+                InvalidateTracked(GetMagnifierCleanupBounds(oldMagnifier));
             }
 
             Rectangle newMagnifier = GetMagnifierCleanupBounds(
                 GetMagnifierBounds(_magnifierPoint));
-            Invalidate(newMagnifier);
+            InvalidateTracked(newMagnifier);
         }
 
         private static Rectangle AdjustSelection(
@@ -1012,17 +1417,83 @@ namespace BoltSnip
                 return;
             }
 
-            _captureActive = false;
-            _windowTrackingTimer.Stop();
-            Capture = false;
-            Hide();
-            DisposeCapturedScreen();
-            ResetSelection();
+            double elapsed = CaptureDiagnostics.ElapsedMilliseconds(_captureStartedTimestamp);
+            CleanupCaptureState();
+            CaptureDiagnostics.Write(
+                "Capture End",
+                "succeeded=" + succeeded + "; elapsedMs=" + elapsed.ToString("F2"));
+            NotifyCaptureFinished(succeeded, message);
+        }
 
+        private void RecoverFromCaptureFailure(string stage, Exception exception)
+        {
+            CaptureDiagnostics.Write(
+                "Capture Failed",
+                CaptureDiagnostics.ExceptionDetails(stage, exception));
+            CleanupCaptureState();
+            NotifyCaptureFinished(false, "截图已安全退出");
+        }
+
+        private void NotifyCaptureFinished(bool succeeded, string message)
+        {
             EventHandler<CaptureStatusEventArgs> handler = CaptureFinished;
             if (handler != null)
             {
-                handler(this, new CaptureStatusEventArgs(succeeded, message));
+                try
+                {
+                    handler(this, new CaptureStatusEventArgs(succeeded, message));
+                }
+                catch (Exception exception)
+                {
+                    CaptureDiagnostics.Write(
+                        "Capture Failed",
+                        CaptureDiagnostics.ExceptionDetails("CaptureFinished handler", exception));
+                }
+            }
+        }
+
+        private void CleanupCaptureState()
+        {
+            _captureActive = false;
+            TryCleanup(delegate { _windowTrackingTimer.Stop(); }, "Timer Stop");
+            TryCleanup(delegate { Capture = false; }, "Mouse Capture Release");
+
+            bool wasVisible = false;
+            try
+            {
+                wasVisible = Visible;
+                if (wasVisible)
+                {
+                    Hide();
+                }
+            }
+            catch (Exception exception)
+            {
+                CaptureDiagnostics.Write(
+                    "Capture Failed",
+                    CaptureDiagnostics.ExceptionDetails("Overlay Hide", exception));
+            }
+            CaptureDiagnostics.Write("Overlay Hide", "wasVisible=" + wasVisible);
+
+            TryCleanup(DisposeCapturedScreen, "Bitmap Dispose");
+            _virtualScreen = Rectangle.Empty;
+            _windowRectangles = new List<Rectangle>();
+            TryCleanup(ResetSelection, "State Reset");
+            _captureStartedTimestamp = 0;
+            CaptureDiagnostics.Write("Resource Cleanup", string.Empty);
+        }
+
+        private static void TryCleanup(Action cleanup, string stage)
+        {
+            try
+            {
+                cleanup();
+            }
+            catch (Exception exception)
+            {
+                CaptureDiagnostics.Write(
+                    "Capture Failed",
+                    CaptureDiagnostics.ExceptionDetails(stage, exception));
             }
         }
 
@@ -1037,15 +1508,23 @@ namespace BoltSnip
             _hasTrackedCursor = false;
             _hasMagnifierPoint = false;
             _showSelectionMagnifier = false;
+            _alignmentGuidePoint = Point.Empty;
+            _alignmentGuideScreen = Rectangle.Empty;
+            _hasAlignmentGuidePoint = false;
+            _pendingPaintRegion.MakeEmpty();
+            _hasPendingPaintRegion = false;
+            _guideColorAnalyzer.Reset();
+            _alignmentGuidePen.Color = GuideColorAnalyzer.DefaultGuideColor;
             Cursor = Cursors.Cross;
         }
 
         private void DisposeCapturedScreen()
         {
-            if (_screen != null)
+            Bitmap screen = _screen;
+            _screen = null;
+            if (screen != null)
             {
-                _screen.Dispose();
-                _screen = null;
+                screen.Dispose();
             }
         }
 
@@ -1067,6 +1546,19 @@ namespace BoltSnip
 
         private void InvalidateSelectionTransition(Rectangle oldRectangle, Rectangle newRectangle, bool includeToolbar)
         {
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+            {
+                AddSelectionTransition(dirty, oldRectangle, newRectangle, includeToolbar);
+                InvalidateDirtyRegion(dirty);
+            }
+        }
+
+        private void AddSelectionTransition(
+            DirtyRegionAccumulator dirty,
+            Rectangle oldRectangle,
+            Rectangle newRectangle,
+            bool includeToolbar)
+        {
             if (oldRectangle.IsEmpty && newRectangle.IsEmpty)
             {
                 return;
@@ -1084,7 +1576,7 @@ namespace BoltSnip
 
                 AddSelectionChrome(changed, oldRectangle, includeToolbar);
                 AddSelectionChrome(changed, newRectangle, includeToolbar);
-                Invalidate(changed);
+                dirty.Add(changed);
             }
             finally
             {
@@ -1103,12 +1595,43 @@ namespace BoltSnip
             try
             {
                 AddSelectionChrome(chrome, rectangle, includeToolbar);
-                Invalidate(chrome);
+                using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+                {
+                    dirty.Add(chrome);
+                    InvalidateDirtyRegion(dirty);
+                }
             }
             finally
             {
                 chrome.Dispose();
             }
+        }
+
+        private void InvalidateDirtyRegion(DirtyRegionAccumulator dirty)
+        {
+            if (dirty != null && dirty.HasArea)
+            {
+                _pendingPaintRegion.Union(dirty.Region);
+                _hasPendingPaintRegion = true;
+                Invalidate(dirty.Region);
+            }
+        }
+
+        private void InvalidateTracked(Rectangle bounds)
+        {
+            using (DirtyRegionAccumulator dirty = new DirtyRegionAccumulator())
+            {
+                dirty.Add(bounds);
+                InvalidateDirtyRegion(dirty);
+            }
+        }
+
+        private void InvalidateFullOverlay()
+        {
+            _pendingPaintRegion.MakeEmpty();
+            _pendingPaintRegion.Union(ClientRectangle);
+            _hasPendingPaintRegion = true;
+            Invalidate();
         }
 
         private void AddSelectionChrome(Region region, Rectangle rectangle, bool includeToolbar)

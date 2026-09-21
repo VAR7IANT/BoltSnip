@@ -1,38 +1,45 @@
 param(
-    [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
-    [string]$ExpectedVersion = '0.12.0'
+    [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent)
 )
 
 $ErrorActionPreference = 'Stop'
-
+$definition = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'release.json') | ConvertFrom-Json
 $assemblyInfo = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'src\AssemblyInfo.cs')
 $manifest = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'app.manifest')
 $installerScript = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'installer\BoltSnip.iss')
-$buildScript = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'build-installer.ps1')
+$applicationBuild = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'build.ps1')
+$installerBuild = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'build-installer.ps1')
+$executable = Join-Path $ProjectRoot 'bin\BoltSnip.exe'
+$assemblyVersion = ([Reflection.AssemblyName]::GetAssemblyName($executable)).Version.ToString()
+$versionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable)
+$expectedAssemblyVersion = $definition.Version + '.0'
 
-$fourPartVersion = [Regex]::Escape($ExpectedVersion + '.0')
-$assemblyMatches = $assemblyInfo -match ('AssemblyFileVersion\("' + $fourPartVersion + '"\)')
-$manifestMatches = $manifest -match ('assemblyIdentity version="' + $fourPartVersion + '"')
-$installerMatches = $installerScript -match ('#define AppVersion "' + [Regex]::Escape($ExpectedVersion) + '"')
+$singleVersionSource = $assemblyInfo -notmatch 'Assembly(File)?Version' -and
+    $manifest -match '__ASSEMBLY_VERSION__' -and
+    $installerScript -notmatch '#define AppVersion "' -and
+    $installerBuild -notmatch '\[string\]\$Version'
+$artifactMatches = $assemblyVersion -eq $expectedAssemblyVersion -and
+    $versionInfo.FileVersion -eq $expectedAssemblyVersion -and
+    $versionInfo.ProductName -eq $definition.ProductName -and
+    $versionInfo.ProductVersion.StartsWith([string]$definition.Version, [StringComparison]::Ordinal)
+$buildValidatesArtifact = $applicationBuild -match 'Built executable identity does not match release\.json'
+$installerUsesIdentity = $installerBuild -match 'release\.json' -and
+    $installerScript -match 'AppName=\{#ProductName\}' -and
+    $installerScript -match 'OutputBaseFilename=\{#ProductName\}-Setup-\{#AppVersion\}-win-x64'
 $perUserInstall = $installerScript -match 'DefaultDirName=\{localappdata\}\\Programs\\BoltSnip' -and
     $installerScript -match 'PrivilegesRequired=lowest'
 $x64Only = $installerScript -match 'ArchitecturesAllowed=x64compatible'
-$outputNameMatches = $installerScript -match 'OutputBaseFilename=BoltSnip-Setup-\{#AppVersion\}-win-x64'
-$buildUsesInno = $buildScript -match 'ISCC\.exe'
-$passed = $assemblyMatches -and $manifestMatches -and $installerMatches -and
-    $perUserInstall -and $x64Only -and $outputNameMatches -and $buildUsesInno
+$passed = $singleVersionSource -and $artifactMatches -and $buildValidatesArtifact -and
+    $installerUsesIdentity -and $perUserInstall -and $x64Only
 
 [pscustomobject]@{
-    AssemblyVersionMatches = $assemblyMatches
-    ManifestVersionMatches = $manifestMatches
-    InstallerVersionMatches = $installerMatches
+    SingleVersionSource = $singleVersionSource
+    BuiltArtifactMatches = $artifactMatches
+    BuildValidatesArtifact = $buildValidatesArtifact
+    InstallerUsesReleaseIdentity = $installerUsesIdentity
     PerUserInstall = $perUserInstall
     X64Installer = $x64Only
-    ReleaseFileNameMatches = $outputNameMatches
-    InnoBuildConfigured = $buildUsesInno
     Passed = $passed
 } | Format-List
 
-if (-not $passed) {
-    exit 1
-}
+if (-not $passed) { exit 1 }

@@ -1,5 +1,9 @@
 #ifndef AppVersion
-  #define AppVersion "0.12.0"
+  #error AppVersion must be supplied by build-installer.ps1
+#endif
+
+#ifndef ProductName
+  #error ProductName must be supplied by build-installer.ps1
 #endif
 
 #ifndef SourceExecutable
@@ -8,9 +12,9 @@
 
 [Setup]
 AppId={{A2E4C85C-1652-4E6F-9B6F-F1EAC7AF8844}
-AppName=BoltSnip
+AppName={#ProductName}
 AppVersion={#AppVersion}
-AppVerName=BoltSnip {#AppVersion}
+AppVerName={#ProductName} {#AppVersion}
 AppPublisher=VAR7IANT
 AppPublisherURL=https://github.com/VAR7IANT/BoltSnip
 AppSupportURL=https://github.com/VAR7IANT/BoltSnip/issues
@@ -23,7 +27,7 @@ MinVersion=10.0
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
-OutputBaseFilename=BoltSnip-Setup-{#AppVersion}-win-x64
+OutputBaseFilename={#ProductName}-Setup-{#AppVersion}-win-x64
 SetupIconFile=..\bin\app-icon.ico
 UninstallDisplayIcon={app}\BoltSnip.exe
 Compression=lzma2/max
@@ -48,11 +52,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#SourceExecutable}"; DestDir: "{app}"; DestName: "BoltSnip.exe"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\BoltSnip"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\BoltSnip"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autoprograms}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"
+Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\BoltSnip.exe"; Description: "{cm:LaunchProgram,BoltSnip}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\BoltSnip.exe"; Description: "{cm:LaunchProgram,{#ProductName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

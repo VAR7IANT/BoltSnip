@@ -23,6 +23,9 @@ public static class BoltSnipTestNative
 
     [DllImport("user32.dll")]
     public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern int GetGuiResources(IntPtr process, int flags);
 }
 "@
 
@@ -56,6 +59,9 @@ try {
 
     $running = Get-Process -Id $process.Id
     $captureWorkingSet = [math]::Round($running.WorkingSet64 / 1MB, 1)
+    $capturePrivateMemory = [math]::Round($running.PrivateMemorySize64 / 1MB, 1)
+    $captureGdiObjects = [BoltSnipTestNative]::GetGuiResources($running.Handle, 0)
+    $captureUserObjects = [BoltSnipTestNative]::GetGuiResources($running.Handle, 1)
     [void][BoltSnipTestNative]::PostMessage($overlay, 0x0100, [IntPtr]0x1B, [IntPtr]::Zero)
 
     for ($attempt = 0; $attempt -lt 50 -and [BoltSnipTestNative]::IsWindowVisible($overlay); $attempt++) {
@@ -70,6 +76,9 @@ try {
     [pscustomobject]@{
         OverlayLatencyMs = $watch.ElapsedMilliseconds
         CaptureWorkingSetMB = $captureWorkingSet
+        CapturePrivateMemoryMB = $capturePrivateMemory
+        CaptureGdiObjects = $captureGdiObjects
+        CaptureUserObjects = $captureUserObjects
         ProcessAliveAfterCancel = -not $running.HasExited
         OverlayClosedAfterEscape = $true
     }

@@ -35,7 +35,11 @@ try {
     $mouseUpUsesCleanup = $false
     if ($null -ne $cleanupMethod) {
         $tokenBytes = [BitConverter]::GetBytes($cleanupMethod.MetadataToken)
-        $mouseUpIl = $overlayType.GetMethod('OverlayMouseUp', $flags).GetMethodBody().GetILAsByteArray()
+        $mouseUpMethod = $overlayType.GetMethod('OverlayMouseUpCore', $flags)
+        if ($null -eq $mouseUpMethod) {
+            $mouseUpMethod = $overlayType.GetMethod('OverlayMouseUp', $flags)
+        }
+        $mouseUpIl = $mouseUpMethod.GetMethodBody().GetILAsByteArray()
         for ($index = 0; $index -le $mouseUpIl.Length - 5; $index++) {
             if ($mouseUpIl[$index] -eq 0x28 -and
                 $mouseUpIl[$index + 1] -eq $tokenBytes[0] -and
