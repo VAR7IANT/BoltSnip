@@ -29,3 +29,21 @@ resolution, DPI, and desktop contents.
 - Color analyzer call: 33 microseconds/call
 - Capture working set: approximately 84 MB
 - Regression suite: 23/23 passed
+
+## Smooth Rendering comparison
+
+Measured on the same 1707 x 1067 display using controlled real MouseMove and
+drag probes. The optimized overlay keeps a persistent complex dirty region and
+applies it inside `PaintOverlay` instead of accepting the near-full-screen
+bounding rectangle supplied by WinForms.
+
+| Scenario | Before | After |
+| --- | ---: | ---: |
+| Free-move paint coverage | 96.7% | 4.92% |
+| Free-move average paint | 9.36 ms | 4.63 ms |
+| Free-move maximum paint | 12.17 ms | 8.20 ms |
+| Drag paint coverage | 99.85% | 5.25% |
+| Drag average paint | 9.23 ms | 5.38 ms |
+
+Smooth Rendering regression suite: 24/24 passed, including 100 consecutive
+capture cycles and 100 failure-recovery cycles.
