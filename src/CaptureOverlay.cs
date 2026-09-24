@@ -1072,8 +1072,8 @@ namespace BoltSnip
                 graphics.FillPath(_toolbarBrush, path);
             }
 
-            DrawToolbarButton(graphics, ToolbarAction.Copy, "复制 · 左键", 0);
-            DrawToolbarButton(graphics, ToolbarAction.Save, "快存 · 右键", 1);
+            DrawToolbarButton(graphics, ToolbarAction.Copy, "复制", 0);
+            DrawToolbarButton(graphics, ToolbarAction.Save, "快存", 1);
             DrawToolbarButton(graphics, ToolbarAction.Cancel, "取消", 2);
         }
 
@@ -1099,8 +1099,8 @@ namespace BoltSnip
 
         private Rectangle GetToolbarBounds(Rectangle selection)
         {
-            const int width = 244;
-            const int height = 40;
+            int width = Math.Min(160, Math.Max(0, ClientSize.Width - 12));
+            const int height = 34;
             int x = selection.Right - width;
             int y = selection.Bottom + 9;
 
@@ -1116,13 +1116,12 @@ namespace BoltSnip
         private Rectangle GetToolbarButtonBounds(int index)
         {
             Rectangle toolbar = GetToolbarBounds(_selection);
-            int[] widths = { 100, 80, 60 };
-            int x = toolbar.Left + 2;
-            for (int i = 0; i < index; i++)
-            {
-                x += widths[i];
-            }
-            return new Rectangle(x, toolbar.Top + 2, widths[index], toolbar.Height - 4);
+            int contentWidth = Math.Max(0, toolbar.Width - 4);
+            int firstWidth = contentWidth / 3;
+            int secondWidth = contentWidth / 3;
+            int x = toolbar.Left + 2 + (index > 0 ? firstWidth : 0) + (index > 1 ? secondWidth : 0);
+            int width = index == 0 ? firstWidth : index == 1 ? secondWidth : contentWidth - firstWidth - secondWidth;
+            return new Rectangle(x, toolbar.Top + 2, width, toolbar.Height - 4);
         }
 
         private ToolbarAction HitTestToolbar(Point location)

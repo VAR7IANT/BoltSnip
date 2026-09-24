@@ -19,6 +19,7 @@ AppPublisher=VAR7IANT
 AppPublisherURL=https://github.com/VAR7IANT/BoltSnip
 AppSupportURL=https://github.com/VAR7IANT/BoltSnip/issues
 AppUpdatesURL=https://github.com/VAR7IANT/BoltSnip/releases
+AppMutex=Local\BoltSnip.SingleInstance
 DefaultDirName={localappdata}\Programs\BoltSnip
 DefaultGroupName=BoltSnip
 DisableProgramGroupPage=yes
@@ -53,6 +54,8 @@ Source: "{#SourceExecutable}"; DestDir: "{app}"; DestName: "BoltSnip.exe"; Flags
 
 [Icons]
 Name: "{autoprograms}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"
+Name: "{autoprograms}\{cm:UninstallProgram,{#ProductName}}"; Filename: "{uninstallexe}"
+Name: "{app}\{cm:UninstallProgram,{#ProductName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
