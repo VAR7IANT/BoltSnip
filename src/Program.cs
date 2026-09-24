@@ -36,6 +36,11 @@ namespace BoltSnip
                     return;
                 }
 
+                if (!LicenseManager.EnsureAuthorized())
+                {
+                    return;
+                }
+
                 Application.Run(new TrayApplicationContext());
             }
             finally

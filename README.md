@@ -22,13 +22,13 @@ BoltSnip 是一款追求“按下快捷键，马上拿到截图”的 Windows �
 - 托盘中一键启用或关闭当前用户的 Windows 开机启动，无需管理员权限
 - 专属托盘菜单样式：青色悬停轨、圆角勾选框、清晰分组与右对齐快捷键
 - 勾选框按字体可见中心进行光学对齐，菜单行更整齐
-- 单文件 EXE，无联网需求和第三方运行依赖
+- 单文件 EXE，无第三方运行依赖；客户授权需要联网校验
 - 截图全程在本地完成
 - 应用图标由构建脚本以矢量路径生成，无需额外二进制素材
 
 ## 使用
 
-1. 启动 `BoltSnip.exe`，程序会常驻系统托盘。
+1. 启动 `BoltSnip.exe`。授权版首次启动时输入客户激活码，或导入离线授权文件；随后程序会常驻系统托盘。
 2. 按 `Alt+A` 开始截图；若被占用，会尝试 `Ctrl+Shift+A`。
 3. 移动鼠标选择窗口，或拖动鼠标自由框选。
 4. 确定选区后，可用方向键逐像素移动；按住 `Shift` 再按方向键可缩放右侧或底部边缘。
@@ -70,7 +70,7 @@ BoltSnip 安装到当前用户的 `%LOCALAPPDATA%\Programs\BoltSnip`，无需管
 
 ## 构建
 
-系统要求：Windows 10/11 与 .NET Framework 4.8。
+系统要求：Windows 10/11 与 .NET Framework 4.8。普通构建用于开发测试，不启用授权；正式安装包构建需要配置授权公钥和服务地址，详见 [授权实验说明](docs/licensing.md)。
 
 在 PowerShell 中运行：
 
@@ -83,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 构建 Windows 安装包需要 Inno Setup 7。安装后运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build-installer.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-installer.ps1 -OwnerPublicKeyPath .\licensing\owner-public.xml -LicenseServerUrl https://bs.oioio.cyou
 ```
 
 安装包输出到 `dist\BoltSnip-Setup-<version>-win-x64.exe`，版本取自 `release.json`。

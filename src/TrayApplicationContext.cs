@@ -43,6 +43,17 @@ namespace BoltSnip
             saveDirectorySettings.Click += delegate { OpenSaveDirectorySettings(); };
             BoltSnipMenuStyle.ApplyItem(saveDirectorySettings);
             _trayMenu.Items.Add(saveDirectorySettings);
+            if (LicenseManager.Enabled)
+            {
+                ToolStripMenuItem license = new ToolStripMenuItem("更换授权…");
+                license.Click += delegate
+                {
+                    using (ActivationDialog dialog = new ActivationDialog())
+                        dialog.ShowDialog();
+                };
+                BoltSnipMenuStyle.ApplyItem(license);
+                _trayMenu.Items.Add(license);
+            }
             _startupMenuItem = new ToolStripMenuItem("开机启动");
             _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
             _startupMenuItem.Click += delegate { ToggleStartup(); };
@@ -202,6 +213,11 @@ namespace BoltSnip
         {
             if (_exiting || _overlay.IsCapturing)
             {
+                return;
+            }
+            if (!LicenseManager.IsAuthorized)
+            {
+                _trayIcon.ShowBalloonTip(3500, "授权需要验证", "请检查网络，或在托盘菜单中更换授权。", ToolTipIcon.Warning);
                 return;
             }
 

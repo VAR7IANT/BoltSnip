@@ -1,5 +1,8 @@
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'bin')
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'bin'),
+    [switch]$EnableLicensing,
+    [string]$OwnerPublicKeyPath,
+    [string]$LicenseServerUrl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,6 +11,29 @@ if (-not (Test-Path -LiteralPath $identityPath)) {
     throw "Release identity was not found: $identityPath"
 }
 $identity = Get-Content -Raw -Encoding UTF8 $identityPath | ConvertFrom-Json
+if ($EnableLicensing) {
+    if ([string]::IsNullOrWhiteSpace($OwnerPublicKeyPath) -or
+        -not (Test-Path -LiteralPath $OwnerPublicKeyPath) -or
+        [string]::IsNullOrWhiteSpace($LicenseServerUrl)) {
+        throw 'Licensed builds need -OwnerPublicKeyPath and -LicenseServerUrl.'
+    }
+    $uri = $null
+    if (-not [Uri]::TryCreate($LicenseServerUrl, [UriKind]::Absolute, [ref]$uri) -or
+        ($uri.Scheme -ne 'https' -and
+         -not ($uri.Scheme -eq 'http' -and $uri.Host -in @('localhost', '127.0.0.1')))) {
+        throw 'The activation URL must use HTTPS, except for localhost experiments.'
+    }
+    $ownerPublicKey = Get-Content -Raw -LiteralPath $OwnerPublicKeyPath
+    if ($ownerPublicKey -match '<D>|<P>|<Q>|<DP>|<DQ>|<InverseQ>') {
+        throw 'The owner public key file contains private key material.'
+    }
+    $rsa = New-Object Security.Cryptography.RSACryptoServiceProvider
+    try { $rsa.FromXmlString($ownerPublicKey) }
+    finally { $rsa.Dispose() }
+} else {
+    $ownerPublicKey = ''
+    $LicenseServerUrl = ''
+}
 if ([string]::IsNullOrWhiteSpace($identity.ProductName) -or
     $identity.Version -notmatch '^\d+\.\d+\.\d+$' -or
     $identity.MinimumSupportedVersion -notmatch '^\d+\.\d+\.\d+$') {
@@ -51,7 +77,7 @@ if (-not (Test-Path -LiteralPath $compiler)) {
 }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-$intermediateDirectory = Join-Path $PSScriptRoot 'obj'
+$intermediateDirectory = Join-Path $OutputDirectory 'intermediate'
 New-Item -ItemType Directory -Force -Path $intermediateDirectory | Out-Null
 $generatedIdentity = Join-Path $intermediateDirectory 'ReleaseIdentity.g.cs'
 $generatedManifest = Join-Path $intermediateDirectory 'app.manifest'
@@ -60,6 +86,9 @@ $versionLiteral = ConvertTo-CSharpLiteral ([string]$identity.Version)
 $minimumVersionLiteral = ConvertTo-CSharpLiteral ([string]$identity.MinimumSupportedVersion)
 $buildTimeLiteral = ConvertTo-CSharpLiteral $buildTimeUtc
 $buildIdLiteral = ConvertTo-CSharpLiteral $buildId
+$ownerPublicKeyLiteral = ConvertTo-CSharpLiteral $ownerPublicKey
+$licenseServerLiteral = ConvertTo-CSharpLiteral $LicenseServerUrl
+$licensingEnabledLiteral = if ($EnableLicensing) { 'true' } else { 'false' }
 $informationalVersionLiteral = ConvertTo-CSharpLiteral (([string]$identity.Version) + '+' + $buildId.Replace('-', '.'))
 $generatedSource = @"
 using System.Reflection;
@@ -81,6 +110,13 @@ namespace BoltSnip
         internal const string MinimumSupportedVersion = "$minimumVersionLiteral";
         internal const string BuildTimeUtc = "$buildTimeLiteral";
         internal const string BuildId = "$buildIdLiteral";
+    }
+
+    internal static class LicensingValues
+    {
+        internal const bool Enabled = $licensingEnabledLiteral;
+        internal const string OwnerPublicKeyXml = "$ownerPublicKeyLiteral";
+        internal const string ServerUrl = "$licenseServerLiteral";
     }
 }
 "@

@@ -1,8 +1,14 @@
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist')
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist'),
+    [string]$OwnerPublicKeyPath,
+    [string]$LicenseServerUrl
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($OwnerPublicKeyPath) -or
+    [string]::IsNullOrWhiteSpace($LicenseServerUrl)) {
+    throw 'Installer builds require -OwnerPublicKeyPath and -LicenseServerUrl.'
+}
 $identity = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'release.json') | ConvertFrom-Json
 $Version = [string]$identity.Version
 $ProductName = [string]$identity.ProductName
@@ -25,8 +31,9 @@ if ([string]::IsNullOrWhiteSpace($innoCompiler)) {
 $resolvedOutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $resolvedOutputDirectory | Out-Null
 
-$applicationOutputDirectory = Join-Path $PSScriptRoot 'bin'
-$executable = & (Join-Path $PSScriptRoot 'build.ps1') -OutputDirectory $applicationOutputDirectory
+$applicationOutputDirectory = Join-Path $PSScriptRoot 'obj\installer-build'
+$executable = & (Join-Path $PSScriptRoot 'build.ps1') -OutputDirectory $applicationOutputDirectory `
+    -EnableLicensing -OwnerPublicKeyPath $OwnerPublicKeyPath -LicenseServerUrl $LicenseServerUrl
 if ($LASTEXITCODE -ne 0) {
     throw "Application build failed with exit code $LASTEXITCODE"
 }

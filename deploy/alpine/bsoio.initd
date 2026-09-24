@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+description="BoltSnip activation service"
+export BOLTSNIP_DB="/root/boltsnip/licenses.db"
+command="/usr/bin/python3"
+command_args="/opt/boltsnip/bsoio s"
+command_user="root"
+supervisor="supervise-daemon"
+respawn_delay=5
+respawn_max=0
+
+depend() {
+    need net
+}
