@@ -25,7 +25,17 @@ namespace BoltSnip
 
         internal static void Write(string eventName, string details)
         {
-            if (!EnabledValue)
+            Write(eventName, details, false);
+        }
+
+        internal static void WriteReplay(string details)
+        {
+            Write("Replay", details, true);
+        }
+
+        private static void Write(string eventName, string details, bool alwaysWrite)
+        {
+            if (!EnabledValue && !alwaysWrite)
             {
                 return;
             }

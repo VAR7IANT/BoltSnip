@@ -6,30 +6,49 @@ namespace BoltSnip
     internal sealed class HotkeyWindow : NativeWindow, IDisposable
     {
         private const int HotkeyId = 0x5A71;
+        private const int ReplayHotkeyId = 0x5A72;
         private readonly Action _pressed;
+        private readonly Action _replayPressed;
+        private readonly HotkeyGesture _replayGesture;
         private bool _registered;
+        private bool _replayRegistered;
 
         private HotkeyGesture? _currentGesture;
 
-        internal HotkeyWindow(Action pressed, HotkeyGesture preferredGesture)
+        internal HotkeyWindow(Action pressed, Action replayPressed, HotkeyGesture preferredGesture)
+            : this(
+                pressed,
+                replayPressed,
+                preferredGesture,
+                new HotkeyGesture(NativeMethods.MOD_ALT | NativeMethods.MOD_SHIFT, Keys.S))
+        {
+        }
+
+        internal HotkeyWindow(
+            Action pressed,
+            Action replayPressed,
+            HotkeyGesture preferredGesture,
+            HotkeyGesture replayGesture)
         {
             _pressed = pressed;
+            _replayPressed = replayPressed;
+            _replayGesture = replayGesture;
             CreateParams parameters = new CreateParams();
             parameters.Caption = "BoltSnip.Hotkey";
             CreateHandle(parameters);
 
-            if (Register(preferredGesture))
+            if (!Register(preferredGesture))
             {
-                return;
+                HotkeyGesture fallback = new HotkeyGesture(
+                    NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
+                    Keys.A);
+                if (!fallback.Equals(preferredGesture))
+                {
+                    Register(fallback);
+                }
             }
 
-            HotkeyGesture fallback = new HotkeyGesture(
-                NativeMethods.MOD_CONTROL | NativeMethods.MOD_SHIFT,
-                Keys.A);
-            if (!fallback.Equals(preferredGesture))
-            {
-                Register(fallback);
-            }
+            RegisterReplayHotkey();
         }
 
         internal string ShortcutText
@@ -47,6 +66,16 @@ namespace BoltSnip
             get { return _registered; }
         }
 
+        internal bool IsReplayHotkeyRegistered
+        {
+            get { return _replayRegistered; }
+        }
+
+        internal string ReplayShortcutText
+        {
+            get { return _replayGesture.DisplayText; }
+        }
+
         internal void Suspend()
         {
             if (_registered)
@@ -54,33 +83,49 @@ namespace BoltSnip
                 NativeMethods.UnregisterHotKey(Handle, HotkeyId);
                 _registered = false;
             }
+            if (_replayRegistered)
+            {
+                NativeMethods.UnregisterHotKey(Handle, ReplayHotkeyId);
+                _replayRegistered = false;
+            }
         }
 
         internal bool Resume(out string error)
         {
-            if (_registered)
+            if (!_registered && _currentGesture.HasValue)
             {
-                error = null;
-                return true;
+                Register(_currentGesture.Value);
             }
 
-            if (_currentGesture.HasValue && Register(_currentGesture.Value))
+            if (!_replayRegistered)
             {
-                error = null;
-                return true;
+                RegisterReplayHotkey();
             }
 
-            error = "原快捷键已被其他程序占用，请重新设置。";
-            return false;
+            if (!_registered)
+            {
+                error = "原快捷键已被其他程序占用，请重新设置。";
+                return false;
+            }
+
+            error = _replayRegistered ? null : "即时回放快捷键 Alt+Shift+S 已被占用。";
+            return true;
         }
 
         internal bool TryChange(HotkeyGesture newGesture, out string error)
         {
+            if (newGesture.Equals(_replayGesture))
+            {
+                error = "“" + newGesture.DisplayText + "” 已保留给即时回放，请换一个组合键。";
+                return false;
+            }
+
             HotkeyGesture? previous = _currentGesture;
             Suspend();
 
             if (Register(newGesture))
             {
+                RegisterReplayHotkey();
                 error = null;
                 return true;
             }
@@ -89,6 +134,7 @@ namespace BoltSnip
             {
                 Register(previous.Value);
             }
+            RegisterReplayHotkey();
 
             error = "“" + newGesture.DisplayText + "” 已被其他程序占用，请换一个组合键。";
             return false;
@@ -99,6 +145,14 @@ namespace BoltSnip
             if (message.Msg == NativeMethods.WM_HOTKEY && message.WParam.ToInt32() == HotkeyId)
             {
                 _pressed();
+                return;
+            }
+            if (message.Msg == NativeMethods.WM_HOTKEY && message.WParam.ToInt32() == ReplayHotkeyId)
+            {
+                if (_replayPressed != null)
+                {
+                    _replayPressed();
+                }
                 return;
             }
 
@@ -112,8 +166,23 @@ namespace BoltSnip
                 NativeMethods.UnregisterHotKey(Handle, HotkeyId);
                 _registered = false;
             }
+            if (_replayRegistered)
+            {
+                NativeMethods.UnregisterHotKey(Handle, ReplayHotkeyId);
+                _replayRegistered = false;
+            }
 
             DestroyHandle();
+        }
+
+        private bool RegisterReplayHotkey()
+        {
+            _replayRegistered = NativeMethods.RegisterHotKey(
+                Handle,
+                ReplayHotkeyId,
+                _replayGesture.Modifiers | NativeMethods.MOD_NOREPEAT,
+                (uint)_replayGesture.Key);
+            return _replayRegistered;
         }
 
         private bool Register(HotkeyGesture gesture)

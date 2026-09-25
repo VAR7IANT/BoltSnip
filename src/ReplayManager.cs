@@ -1,0 +1,639 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+
+namespace BoltSnip
+{
+    internal sealed class ReplayManager : IDisposable
+    {
+        private static readonly TimeSpan StaleReplayCacheAge = TimeSpan.FromHours(24);
+        private static int _staleReplayCacheCleanupAttempted;
+
+        private readonly object _syncRoot = new object();
+        private readonly ManualResetEvent _stopEvent = new ManualResetEvent(false);
+        private readonly ReplaySettings _settings;
+        private readonly Queue<ReplayNotification> _notifications = new Queue<ReplayNotification>();
+        private ReplayState _state = ReplayState.Disabled;
+        private ReplayEncoder _encoder;
+        private ReplayBuffer _buffer;
+        private ReplaySaver _saver;
+        private Thread _recordingThread;
+        private Thread _savingThread;
+        private bool _stopRequested;
+        private bool _disposed;
+        private bool _stopEventDisposed;
+        private bool _isSaving;
+        private string _lastError;
+
+        internal ReplayManager()
+            : this(new ReplaySettings())
+        {
+        }
+
+        internal ReplayManager(ReplaySettings settings)
+        {
+            if (settings == null)
+            {
+                throw new ArgumentNullException("settings");
+            }
+            _settings = settings;
+        }
+
+        internal ReplayState State
+        {
+            get { lock (_syncRoot) { return _state; } }
+        }
+
+        internal bool IsSaving
+        {
+            get { lock (_syncRoot) { return _isSaving; } }
+        }
+
+        internal string LastError
+        {
+            get { lock (_syncRoot) { return _lastError; } }
+        }
+
+        internal int BufferedSegmentCount
+        {
+            get
+            {
+                ReplayBuffer buffer;
+                lock (_syncRoot) { buffer = _buffer; }
+                return buffer == null ? 0 : buffer.SegmentCount;
+            }
+        }
+
+        internal double BufferedDurationSeconds
+        {
+            get
+            {
+                ReplayBuffer buffer;
+                lock (_syncRoot) { buffer = _buffer; }
+                return buffer == null ? 0 : buffer.CurrentDurationSeconds;
+            }
+        }
+
+        internal void Start()
+        {
+            lock (_syncRoot)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+                if (_isSaving)
+                {
+                    EnqueueNotification("即时回放", "上一段即时回放仍在保存，请等待保存完成后再重新开启。", true);
+                    return;
+                }
+                if (_state == ReplayState.Starting || _state == ReplayState.Recording || _state == ReplayState.Stopping)
+                {
+                    return;
+                }
+
+                _stopEvent.Reset();
+                _stopRequested = false;
+                _lastError = null;
+                _state = ReplayState.Starting;
+                _recordingThread = new Thread(RecordLoop);
+                _recordingThread.IsBackground = true;
+                _recordingThread.Name = "BoltSnip Instant Replay";
+                _recordingThread.Start();
+                EnqueueNotification("即时回放", "正在开启即时回放…", false);
+            }
+
+            ReplayDiagnostics.Write("Starting capture");
+        }
+
+        internal void Stop()
+        {
+            bool changeState = false;
+            ReplayBuffer buffer;
+            lock (_syncRoot)
+            {
+                if (_disposed || _state == ReplayState.Disabled || _state == ReplayState.Stopping)
+                {
+                    return;
+                }
+
+                _stopRequested = true;
+                _stopEvent.Set();
+                buffer = _buffer;
+                if (_recordingThread == null || !_recordingThread.IsAlive)
+                {
+                    _state = ReplayState.Disabled;
+                    _lastError = null;
+                }
+                else
+                {
+                    _state = ReplayState.Stopping;
+                }
+                changeState = true;
+                EnqueueNotification("即时回放", "正在关闭即时回放…", false);
+            }
+
+            if (buffer != null)
+            {
+                buffer.WakeWaiters();
+            }
+
+            if (changeState)
+            {
+                ReplayDiagnostics.Write("Stopping capture");
+            }
+        }
+
+        internal bool SaveReplay()
+        {
+            ReplayBuffer buffer;
+            ReplayEncoder encoder;
+            lock (_syncRoot)
+            {
+                if (_disposed || _state != ReplayState.Recording || _buffer == null || _encoder == null)
+                {
+                    EnqueueNotification("即时回放未开启", "请先在托盘菜单中开启即时回放。", true);
+                    return false;
+                }
+                if (_isSaving)
+                {
+                    EnqueueNotification("即时回放", "上一段回放仍在保存，请稍后再试。", true);
+                    return false;
+                }
+
+                buffer = _buffer;
+                encoder = _encoder;
+                if (buffer.LatestIndex < 0)
+                {
+                    EnqueueNotification("即时回放正在预热", "请等待约 2 秒后再保存。", false);
+                    return false;
+                }
+
+                _isSaving = true;
+                ReplaySaver saver = new ReplaySaver();
+                _saver = saver;
+                int latestIndex = buffer.LatestIndex;
+                string ffmpegPath = encoder.FfmpegPath;
+                _savingThread = new Thread(delegate()
+                {
+                    SaveLoop(buffer, saver, ffmpegPath, latestIndex);
+                });
+                _savingThread.IsBackground = true;
+                _savingThread.Name = "BoltSnip Replay Saver";
+                _savingThread.Start();
+                EnqueueNotification("即时回放", "正在保存最近可用的回放…", false);
+            }
+
+            ReplayDiagnostics.Write("Replay save requested");
+            return true;
+        }
+
+        internal bool TryDequeueNotification(out ReplayNotification notification)
+        {
+            lock (_syncRoot)
+            {
+                if (_notifications.Count == 0)
+                {
+                    notification = null;
+                    return false;
+                }
+                notification = _notifications.Dequeue();
+                return true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Thread recordingThread;
+            Thread savingThread;
+            ReplayEncoder encoder;
+            ReplaySaver saver;
+            ReplayBuffer buffer;
+            lock (_syncRoot)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _stopRequested = true;
+                _stopEvent.Set();
+                buffer = _buffer;
+                if (_state != ReplayState.Disabled)
+                {
+                    _state = ReplayState.Stopping;
+                }
+                recordingThread = _recordingThread;
+                savingThread = _savingThread;
+                encoder = _encoder;
+                saver = _saver;
+            }
+
+            if (buffer != null)
+            {
+                buffer.WakeWaiters();
+            }
+
+            if (saver != null)
+            {
+                saver.Cancel();
+            }
+            if (encoder != null)
+            {
+                encoder.Stop();
+            }
+
+            JoinQuietly(recordingThread, 12000);
+            JoinQuietly(savingThread, 7000);
+
+            lock (_syncRoot)
+            {
+                _state = ReplayState.Disabled;
+                _encoder = null;
+                _buffer = null;
+                _saver = null;
+                if (recordingThread == null || !recordingThread.IsAlive)
+                {
+                    _recordingThread = null;
+                }
+                if (savingThread == null || !savingThread.IsAlive)
+                {
+                    _savingThread = null;
+                    _isSaving = false;
+                }
+                TryDisposeStopEventUnsafe();
+            }
+
+            ReplayDiagnostics.Write("Manager disposed");
+        }
+
+        private void RecordLoop()
+        {
+            ReplayEncoder encoder = new ReplayEncoder();
+            ReplayCaptureSession captureSession = new ReplayCaptureSession();
+            ReplayBuffer buffer = null;
+            bool failed = false;
+            string failureMessage = null;
+
+            try
+            {
+                string cacheDirectory = CreateCacheDirectory();
+                buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                lock (_syncRoot)
+                {
+                    if (_stopRequested || _disposed)
+                    {
+                        return;
+                    }
+                    _encoder = encoder;
+                    _buffer = buffer;
+                }
+
+                encoder.Start(cacheDirectory, _settings, captureSession);
+                DateTime startupDeadline = DateTime.UtcNow.AddSeconds(3);
+                while (!IsStopRequested() && !encoder.HasExited && DateTime.UtcNow < startupDeadline)
+                {
+                    Thread.Sleep(100);
+                }
+                if (IsStopRequested())
+                {
+                    return;
+                }
+                if (encoder.HasExited)
+                {
+                    throw BuildEncoderFailure(encoder, "桌面捕获或 NVENC 初始化失败");
+                }
+
+                lock (_syncRoot)
+                {
+                    if (!_stopRequested && !_disposed)
+                    {
+                        _state = ReplayState.Recording;
+                        EnqueueNotification("即时回放已开启", "按 Alt+Shift+S 保存最近录像。", false);
+                    }
+                }
+
+                ReplayDiagnostics.Write("Capture started; buffer initialized");
+                DateTime lastSegmentReceivedUtc = DateTime.UtcNow;
+                while (!IsStopRequested())
+                {
+                    IList<ReplaySegment> completed = encoder.ReadCompletedSegments(_settings.segment_duration_seconds);
+                    for (int index = 0; index < completed.Count; index++)
+                    {
+                        ReplaySegment segment = completed[index];
+                        if (buffer.AddSegment(segment))
+                        {
+                            lastSegmentReceivedUtc = DateTime.UtcNow;
+                            if (buffer.SegmentCount == 1)
+                            {
+                                ReplayDiagnostics.Write("First encoded segment buffered");
+                            }
+                        }
+                    }
+
+                    if (encoder.HasExited)
+                    {
+                        throw BuildEncoderFailure(encoder, "即时回放捕获进程意外退出");
+                    }
+                    if (captureSession.HasDisplayChanged())
+                    {
+                        throw new InvalidOperationException("主显示器分辨率或连接状态已改变，请关闭后重新开启即时回放。");
+                    }
+                    if (DateTime.UtcNow - lastSegmentReceivedUtc > TimeSpan.FromSeconds(15))
+                    {
+                        throw new InvalidOperationException("超过 15 秒没有生成新录像片段，已停止即时回放以保护临时磁盘空间。");
+                    }
+                    Thread.Sleep(250);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // A user or application stop is an expected end to the capture loop.
+            }
+            catch (Exception exception)
+            {
+                if (!IsStopRequested())
+                {
+                    failed = true;
+                    failureMessage = exception.Message;
+                    ReplayDiagnostics.Write("Capture error: " + exception.Message);
+                    if (!string.IsNullOrWhiteSpace(encoder.RecentError))
+                    {
+                        ReplayDiagnostics.Write("Encoder error: " + encoder.RecentError.Replace('\r', ' ').Replace('\n', ' '));
+                    }
+                }
+            }
+            finally
+            {
+                encoder.Stop();
+                encoder.Dispose();
+                if (buffer != null)
+                {
+                    buffer.Dispose();
+                }
+
+                lock (_syncRoot)
+                {
+                    if (ReferenceEquals(_encoder, encoder))
+                    {
+                        _encoder = null;
+                    }
+                    if (ReferenceEquals(_buffer, buffer))
+                    {
+                        _buffer = null;
+                    }
+
+                    if (_disposed || _stopRequested)
+                    {
+                        _state = ReplayState.Disabled;
+                        _lastError = null;
+                    }
+                    else if (failed)
+                    {
+                        _state = ReplayState.Error;
+                        _lastError = failureMessage;
+                        EnqueueNotification("即时回放启动或录制失败", failureMessage, true);
+                    }
+                    else
+                    {
+                        _state = ReplayState.Disabled;
+                    }
+                    _recordingThread = null;
+                    TryDisposeStopEventUnsafe();
+                }
+
+                ReplayDiagnostics.Write("Capture resources released");
+            }
+        }
+
+        private void SaveLoop(ReplayBuffer buffer, ReplaySaver saver, string ffmpegPath, int latestIndex)
+        {
+            ReplayBufferSnapshot snapshot = null;
+            try
+            {
+                if (!buffer.WaitForSegmentAfter(latestIndex, 5000, _stopEvent))
+                {
+                    throw new InvalidOperationException("等待当前录像片段完成超时，请稍后重试。");
+                }
+
+                snapshot = buffer.AcquireSnapshot();
+                ReplaySaveResult result = saver.Save(ffmpegPath, snapshot);
+                ReplayDiagnostics.Write(
+                    "Replay saved: " + result.Path + "; duration=" +
+                    result.DurationSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) +
+                    "s; saveMs=" + result.Elapsed.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
+                lock (_syncRoot)
+                {
+                    if (!_disposed)
+                    {
+                        EnqueueNotification(
+                            "即时回放已保存",
+                            Path.GetFileName(result.Path) + " · " + result.DurationSeconds.ToString("F0") + " 秒",
+                            false);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                ReplayDiagnostics.Write("Replay save cancelled during application shutdown");
+            }
+            catch (Exception exception)
+            {
+                ReplayDiagnostics.Write("Replay save failed: " + exception.Message);
+                lock (_syncRoot)
+                {
+                    if (!_disposed)
+                    {
+                        EnqueueNotification("即时回放保存失败", exception.Message, true);
+                    }
+                }
+            }
+            finally
+            {
+                if (snapshot != null)
+                {
+                    snapshot.Dispose();
+                }
+                saver.Dispose();
+                lock (_syncRoot)
+                {
+                    if (ReferenceEquals(_saver, saver))
+                    {
+                        _saver = null;
+                    }
+                    _savingThread = null;
+                    _isSaving = false;
+                    TryDisposeStopEventUnsafe();
+                }
+            }
+        }
+
+        private bool IsStopRequested()
+        {
+            lock (_syncRoot)
+            {
+                return _stopRequested || _disposed;
+            }
+        }
+
+        private string CreateCacheDirectory()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "BoltSnip", "replay-cache");
+            Directory.CreateDirectory(root);
+            CleanupStaleReplayCacheOnce(root);
+
+            // ReplayBuffer owns its session directory; snapshot leases can outlive capture.
+            string session = Path.Combine(root, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(session);
+            return session;
+        }
+
+        private static void CleanupStaleReplayCacheOnce(string root)
+        {
+            // This runs before the first session is created in this process, never on every
+            // Replay start. A stale session owned by this process therefore cannot be swept.
+            if (Interlocked.CompareExchange(ref _staleReplayCacheCleanupAttempted, 1, 0) != 0)
+            {
+                return;
+            }
+
+            CleanupStaleReplayCacheDirectories(root, DateTime.UtcNow, null, null);
+        }
+
+        internal static void CleanupStaleReplayCacheDirectories(
+            string root,
+            DateTime utcNow,
+            string activeSessionDirectory,
+            Action<string> deleteDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return;
+            }
+
+            DateTime cutoffUtc = utcNow.ToUniversalTime() - StaleReplayCacheAge;
+            string activeSessionPath = null;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(activeSessionDirectory))
+                {
+                    activeSessionPath = NormalizeDirectoryPath(activeSessionDirectory);
+                }
+
+                string[] sessions = Directory.GetDirectories(root);
+                for (int index = 0; index < sessions.Length; index++)
+                {
+                    string session = sessions[index];
+                    try
+                    {
+                        if (activeSessionPath != null && string.Equals(
+                            NormalizeDirectoryPath(session), activeSessionPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        DirectoryInfo info = new DirectoryInfo(session);
+                        if (info.LastWriteTimeUtc >= cutoffUtc)
+                        {
+                            continue;
+                        }
+
+                        if (deleteDirectory == null)
+                        {
+                            Directory.Delete(session, true);
+                        }
+                        else
+                        {
+                            deleteDirectory(session);
+                        }
+                        ReplayDiagnostics.Write("Deleted stale replay cache session: " + session);
+                    }
+                    catch (Exception exception)
+                    {
+                        ReplayDiagnostics.Write("Stale replay cache cleanup skipped " + session + ": " +
+                            CaptureDiagnostics.ExceptionDetails("cache cleanup", exception));
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                // Cache cleanup is best-effort and must never prevent Replay initialization.
+                ReplayDiagnostics.Write("Stale replay cache cleanup failed: " +
+                    CaptureDiagnostics.ExceptionDetails("cache cleanup", exception));
+            }
+        }
+
+        private static string NormalizeDirectoryPath(string path)
+        {
+            string fullPath = Path.GetFullPath(path);
+            string root = Path.GetPathRoot(fullPath);
+            return fullPath.Length > root.Length
+                ? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                : fullPath;
+        }
+
+        private void TryDisposeStopEventUnsafe()
+        {
+            if (!_disposed || _stopEventDisposed || _recordingThread != null || _savingThread != null)
+            {
+                return;
+            }
+
+            _stopEvent.Dispose();
+            _stopEventDisposed = true;
+        }
+
+        private static Exception BuildEncoderFailure(ReplayEncoder encoder, string message)
+        {
+            string details = encoder.RecentError;
+            return new InvalidOperationException(
+                string.IsNullOrWhiteSpace(details) ? message : message + Environment.NewLine + details);
+        }
+
+        private void EnqueueNotification(string title, string message, bool isError)
+        {
+            if (message != null && message.Length > 220)
+            {
+                message = message.Substring(0, 217) + "…";
+            }
+            _notifications.Enqueue(new ReplayNotification(title, message, isError));
+            while (_notifications.Count > 12)
+            {
+                _notifications.Dequeue();
+            }
+        }
+
+        private static void JoinQuietly(Thread thread, int timeoutMilliseconds)
+        {
+            if (thread == null || Thread.CurrentThread == thread)
+            {
+                return;
+            }
+
+            try
+            {
+                thread.Join(timeoutMilliseconds);
+            }
+            catch
+            {
+                // Shutdown cleanup must not escape through the tray application context.
+            }
+        }
+    }
+
+    internal sealed class ReplayNotification
+    {
+        internal ReplayNotification(string title, string message, bool isError)
+        {
+            Title = title;
+            Message = message;
+            IsError = isError;
+        }
+
+        internal string Title { get; private set; }
+        internal string Message { get; private set; }
+        internal bool IsError { get; private set; }
+    }
+}

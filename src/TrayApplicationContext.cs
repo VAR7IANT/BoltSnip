@@ -10,13 +10,11 @@ namespace BoltSnip
         private readonly CaptureOverlay _overlay;
         private readonly HotkeyWindow _hotkey;
         private readonly NotifyIcon _trayIcon;
-        private readonly ContextMenuStrip _trayMenu;
-        private readonly ToolStripMenuItem _captureMenuItem;
-        private readonly ToolStripMenuItem _startupMenuItem;
+        private readonly TrayPopupForm _trayPopup;
         private readonly AppSettings _settings;
+        private readonly ReplayManager _replayManager;
+        private readonly Timer _replayUiTimer;
         private readonly Icon _applicationIcon;
-        private readonly Font _menuFont;
-        private readonly Font _menuBoldFont;
         private bool _exiting;
 
         internal TrayApplicationContext()
@@ -24,68 +22,45 @@ namespace BoltSnip
             _settings = AppSettings.Load();
             _overlay = new CaptureOverlay(delegate { return _settings.SaveDirectory; });
             _overlay.CaptureFinished += OverlayCaptureFinished;
-            _hotkey = new HotkeyWindow(BeginCapture, _settings.Hotkey);
+            _replayManager = new ReplayManager();
+            _hotkey = new HotkeyWindow(BeginCapture, SaveReplayFromHotkey, _settings.Hotkey);
 
-            _menuFont = new Font("Microsoft YaHei UI", 9.25f, FontStyle.Regular, GraphicsUnit.Point);
-            _menuBoldFont = new Font(_menuFont, FontStyle.Bold);
-            _trayMenu = new BoltSnipContextMenuStrip();
-            BoltSnipMenuStyle.Apply(_trayMenu, _menuFont);
-            ToolStripLabel version = new ToolStripLabel("BoltSnip · v" + ReleaseIdentity.Version);
-            version.Font = _menuBoldFont;
-            BoltSnipMenuStyle.ApplyItem(version);
-            _trayMenu.Items.Add(version);
-            ToolStripSeparator versionSeparator = new ToolStripSeparator();
-            BoltSnipMenuStyle.ApplySeparator(versionSeparator);
-            _trayMenu.Items.Add(versionSeparator);
-            _captureMenuItem = new ToolStripMenuItem();
-            _captureMenuItem.Font = _menuBoldFont;
-            _captureMenuItem.Click += delegate { BeginCapture(); };
-            BoltSnipMenuStyle.ApplyItem(_captureMenuItem);
-            _trayMenu.Items.Add(_captureMenuItem);
-            ToolStripMenuItem hotkeySettings = new ToolStripMenuItem("设置快捷键…");
-            hotkeySettings.Click += delegate { OpenHotkeySettings(); };
-            BoltSnipMenuStyle.ApplyItem(hotkeySettings);
-            _trayMenu.Items.Add(hotkeySettings);
-            ToolStripMenuItem saveDirectorySettings = new ToolStripMenuItem("设置保存目录…");
-            saveDirectorySettings.Click += delegate { OpenSaveDirectorySettings(); };
-            BoltSnipMenuStyle.ApplyItem(saveDirectorySettings);
-            _trayMenu.Items.Add(saveDirectorySettings);
-            if (LicenseManager.Enabled)
-            {
-                ToolStripMenuItem license = new ToolStripMenuItem("授权管理…");
-                license.Click += delegate
-                {
-                    using (ActivationDialog dialog = new ActivationDialog())
-                        dialog.ShowDialog();
-                };
-                BoltSnipMenuStyle.ApplyItem(license);
-                _trayMenu.Items.Add(license);
-            }
-            _startupMenuItem = new ToolStripMenuItem("开机启动");
-            _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
-            _startupMenuItem.Click += delegate { ToggleStartup(); };
-            BoltSnipMenuStyle.ApplyItem(_startupMenuItem);
-            _trayMenu.Items.Add(_startupMenuItem);
-            ToolStripSeparator separator = new ToolStripSeparator();
-            BoltSnipMenuStyle.ApplySeparator(separator);
-            _trayMenu.Items.Add(separator);
-            ToolStripMenuItem exit = new ToolStripMenuItem("退出 BoltSnip");
-            exit.Click += delegate { ExitApplication(); };
-            BoltSnipMenuStyle.ApplyItem(exit);
-            _trayMenu.Items.Add(exit);
+            _trayPopup = new TrayPopupForm(
+                BeginCapture,
+                ToggleInstantReplay,
+                delegate { _replayManager.SaveReplay(); },
+                OpenHotkeySettings,
+                OpenSaveDirectorySettings,
+                ToggleStartup,
+                OpenLicenseSettings,
+                ExitApplication);
+            _trayPopup.UpdatePresentation(
+                ReleaseIdentity.Version,
+                _hotkey.ShortcutText,
+                _hotkey.ReplayShortcutText,
+                StartupRegistration.IsEnabledForCurrentExecutable(),
+                LicenseManager.Enabled);
 
             _trayIcon = new NotifyIcon();
             _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             _trayIcon.Icon = _applicationIcon ?? SystemIcons.Application;
-            _trayIcon.ContextMenuStrip = _trayMenu;
+            _trayIcon.MouseUp += TrayIconMouseUp;
             _trayIcon.DoubleClick += delegate { BeginCapture(); };
 
             UpdateShortcutLabels();
             _trayIcon.Visible = true;
+            _replayUiTimer = new Timer();
+            _replayUiTimer.Interval = 350;
+            _replayUiTimer.Tick += ReplayUiTimerTick;
+            _replayUiTimer.Start();
 
             if (_hotkey.ShortcutText == "托盘菜单")
             {
                 _trayIcon.ShowBalloonTip(3000, "BoltSnip", "快捷键被其他程序占用，请双击托盘图标截图。", ToolTipIcon.Warning);
+            }
+            if (!_hotkey.IsReplayHotkeyRegistered)
+            {
+                _trayIcon.ShowBalloonTip(3500, "即时回放快捷键不可用", "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。", ToolTipIcon.Warning);
             }
         }
 
@@ -142,10 +117,18 @@ namespace BoltSnip
                 if (!changed && !_hotkey.IsRegistered)
                 {
                     string resumeError;
-                    if (!_hotkey.Resume(out resumeError))
+                    if (!_hotkey.Resume(out resumeError) || !_hotkey.IsReplayHotkeyRegistered)
                     {
+                        if (string.IsNullOrWhiteSpace(resumeError))
+                        {
+                            resumeError = "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。";
+                        }
                         _trayIcon.ShowBalloonTip(3000, "快捷键不可用", resumeError, ToolTipIcon.Warning);
                     }
+                }
+                else if (changed && !_hotkey.IsReplayHotkeyRegistered)
+                {
+                    _trayIcon.ShowBalloonTip(3000, "即时回放快捷键不可用", "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。", ToolTipIcon.Warning);
                 }
                 UpdateShortcutLabels();
             }
@@ -189,30 +172,107 @@ namespace BoltSnip
             }
         }
 
+        private void OpenLicenseSettings()
+        {
+            using (ActivationDialog dialog = new ActivationDialog())
+            {
+                dialog.ShowDialog();
+            }
+        }
+
         private void ToggleStartup()
         {
-            bool enable = !_startupMenuItem.Checked;
+            bool enable = !StartupRegistration.IsEnabledForCurrentExecutable();
             try
             {
                 StartupRegistration.SetEnabledForCurrentExecutable(enable);
-                _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
             }
             catch (Exception exception)
             {
-                _startupMenuItem.Checked = StartupRegistration.IsEnabledForCurrentExecutable();
                 MessageBox.Show(
                     "无法修改开机启动设置：" + exception.Message,
                     "设置失败",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
+            UpdatePopupPresentation();
         }
 
         private void UpdateShortcutLabels()
         {
-            _captureMenuItem.Text = "开始截图";
-            _captureMenuItem.ShortcutKeyDisplayString = _hotkey.ShortcutText;
-            _trayIcon.Text = "BoltSnip v" + ReleaseIdentity.Version + " · " + _hotkey.ShortcutText;
+            _trayIcon.Text = "BoltSnip v" + ReleaseIdentity.Version + " · " + _hotkey.ShortcutText + " · " + _hotkey.ReplayShortcutText;
+            UpdatePopupPresentation();
+        }
+
+        private void UpdatePopupPresentation()
+        {
+            _trayPopup.UpdatePresentation(
+                ReleaseIdentity.Version,
+                _hotkey.ShortcutText,
+                _hotkey.ReplayShortcutText,
+                StartupRegistration.IsEnabledForCurrentExecutable(),
+                LicenseManager.Enabled);
+        }
+
+        private void ToggleInstantReplay()
+        {
+            ReplayState state = _replayManager.State;
+            if (state == ReplayState.Recording || state == ReplayState.Starting)
+            {
+                _replayManager.Stop();
+            }
+            else if (state != ReplayState.Stopping)
+            {
+                _replayManager.Start();
+            }
+            UpdateReplayUi();
+        }
+
+        private void SaveReplayFromHotkey()
+        {
+            if (!_exiting)
+            {
+                _replayManager.SaveReplay();
+            }
+        }
+
+        private void ReplayUiTimerTick(object sender, EventArgs e)
+        {
+            UpdateReplayUi();
+            ReplayNotification notification;
+            while (_replayManager.TryDequeueNotification(out notification))
+            {
+                if (notification.Title == "即时回放已保存")
+                {
+                    _trayPopup.ShowSavedFeedback();
+                }
+                _trayIcon.ShowBalloonTip(
+                    notification.IsError ? 4500 : 3000,
+                    notification.Title,
+                    notification.Message,
+                    notification.IsError ? ToolTipIcon.Warning : ToolTipIcon.Info);
+            }
+        }
+
+        private void UpdateReplayUi()
+        {
+            if (_exiting)
+            {
+                return;
+            }
+
+            ReplayState state = _replayManager.State;
+            bool saving = _replayManager.IsSaving;
+            _trayPopup.UpdateReplayState(state, saving);
+        }
+
+        private void TrayIconMouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right && !_exiting)
+            {
+                UpdateReplayUi();
+                _trayPopup.ShowNear(Cursor.Position);
+            }
         }
 
         private void BeginCapture()
@@ -246,13 +306,14 @@ namespace BoltSnip
         {
             _exiting = true;
             _trayIcon.Visible = false;
+            _replayUiTimer.Stop();
+            _replayUiTimer.Dispose();
+            _replayManager.Dispose();
             _hotkey.Dispose();
             _overlay.Dispose();
             _trayIcon.ContextMenuStrip = null;
             _trayIcon.Dispose();
-            _trayMenu.Dispose();
-            _menuBoldFont.Dispose();
-            _menuFont.Dispose();
+            _trayPopup.Dispose();
             if (_applicationIcon != null)
             {
                 _applicationIcon.Dispose();
