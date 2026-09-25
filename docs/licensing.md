@@ -1,6 +1,8 @@
-# BoltSnip 授权实验
+# BoltSnip 授权说明
 
-这个实验版提供两种入口：离线授权文件供作者自己使用，客户码由联网服务绑定一台 Windows 安装。客户在新电脑输入原激活码后，绑定自动转移，旧电脑在下一次联网校验时失效。授权保护普通分发场景；拥有并修改客户端二进制文件的人仍可能绕过本地检查。
+授权版提供两种入口：离线授权文件供作者自己使用，客户码由联网服务绑定一台 Windows 安装。客户在新电脑输入原激活码后，绑定自动转移，旧电脑在下一次联网校验时失效。授权保护普通分发场景；拥有并修改客户端二进制文件的人仍可能绕过本地检查。
+
+托盘菜单的“授权管理…”可查看当前授权、更换授权或取消此电脑的授权。取消时，本机保存的 `owner.license` 和 `customer.key` 会移到 `%LOCALAPPDATA%\BoltSnip\revoked\` 下的新备份目录，截图立即停止，直到重新激活。此操作不解除联网激活码在服务端的设备绑定；原码仍可在本机或新电脑重新激活。
 
 ## 作者的离线授权
 
@@ -30,13 +32,13 @@ python .\licensing\server.py --db D:\Codex\Work\BoltSnip\licenses.db serve
 
 设备绑定使用 Windows `MachineGuid` 的哈希。重装系统或系统镜像克隆可能改变或复制它；重新输入原码即可转移。客户端设备信息可被有意伪造，因此这不是防破解机制。
 
-当前先做本机实验。使用上面的命令在本机启动服务，再构建指向本机服务的测试安装包：
+需要本机测试时，使用上面的命令启动服务，再构建指向本机服务的测试安装包：
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\build-installer.ps1 -OutputDirectory .\dist\license-test -OwnerPublicKeyPath .\licensing\owner-public.xml -LicenseServerUrl http://127.0.0.1:8765
 ```
 
-这个测试安装包只适用于运行服务的同一台电脑。尚未部署 `bs.oioio.cyou` 的 DNS、HTTPS 和服务之前，不要把指向该域名的安装包发给客户激活。
+这个测试安装包只适用于运行服务的同一台电脑。正式安装包应使用已部署的 HTTPS 激活服务地址。
 
 ## 小型 NAT VPS
 

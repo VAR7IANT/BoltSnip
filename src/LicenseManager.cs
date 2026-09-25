@@ -17,12 +17,37 @@ namespace BoltSnip
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BoltSnip");
         private static readonly string OwnerPath = Path.Combine(DirectoryPath, "owner.license");
         private static readonly string CustomerPath = Path.Combine(DirectoryPath, "customer.key");
+        private static readonly object AuthorizationSync = new object();
         private static System.Threading.Timer _checkTimer;
         private static int _authorized;
         private static volatile bool _owner;
+        private static volatile bool _canceled;
 
         internal static bool Enabled { get { return LicensingValues.Enabled; } }
-        internal static bool IsAuthorized { get { return !Enabled || _owner || Interlocked.CompareExchange(ref _authorized, 0, 0) == 1; } }
+        internal static bool IsAuthorized { get { return !Enabled || (!_canceled && (_owner || Interlocked.CompareExchange(ref _authorized, 0, 0) == 1)); } }
+
+        internal static bool TryGetAuthorizationInfo(out string method, out string detail)
+        {
+            method = null;
+            detail = null;
+            if (!Enabled || !IsAuthorized) return false;
+            if (_owner)
+            {
+                method = "离线授权文件";
+                detail = OwnerPath;
+                return true;
+            }
+            try
+            {
+                string key = File.ReadAllText(CustomerPath).Trim();
+                if (string.IsNullOrWhiteSpace(key)) return false;
+                method = "联网激活码";
+                detail = key;
+                return true;
+            }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
+        }
 
         internal static bool EnsureAuthorized()
         {
@@ -77,9 +102,55 @@ namespace BoltSnip
             if (!IsValidOwnerFile(contents)) return false;
             Directory.CreateDirectory(DirectoryPath);
             File.WriteAllText(OwnerPath, contents);
-            _owner = true;
-            Interlocked.Exchange(ref _authorized, 1);
+            lock (AuthorizationSync)
+            {
+                _canceled = false;
+                _owner = true;
+                Interlocked.Exchange(ref _authorized, 1);
+            }
             return true;
+        }
+
+        internal static void CancelAuthorization()
+        {
+            lock (AuthorizationSync)
+            {
+                string backupDirectory = Path.Combine(DirectoryPath, "revoked",
+                    DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N"));
+                bool ownerMoved = false;
+                bool customerMoved = false;
+                try
+                {
+                    if (File.Exists(OwnerPath) || File.Exists(CustomerPath))
+                        Directory.CreateDirectory(backupDirectory);
+                    if (File.Exists(OwnerPath))
+                    {
+                        File.Move(OwnerPath, Path.Combine(backupDirectory, "owner.license"));
+                        ownerMoved = true;
+                    }
+                    if (File.Exists(CustomerPath))
+                    {
+                        File.Move(CustomerPath, Path.Combine(backupDirectory, "customer.key"));
+                        customerMoved = true;
+                    }
+                }
+                catch
+                {
+                    if (customerMoved)
+                        File.Move(Path.Combine(backupDirectory, "customer.key"), CustomerPath);
+                    if (ownerMoved)
+                        File.Move(Path.Combine(backupDirectory, "owner.license"), OwnerPath);
+                    throw;
+                }
+                _canceled = true;
+                _owner = false;
+                Interlocked.Exchange(ref _authorized, 0);
+                if (_checkTimer != null)
+                {
+                    _checkTimer.Dispose();
+                    _checkTimer = null;
+                }
+            }
         }
 
         internal static string ActivateCustomer(string key)
@@ -97,15 +168,19 @@ namespace BoltSnip
 
         private static void StartCustomerChecks()
         {
-            _owner = false;
-            Interlocked.Exchange(ref _authorized, 1);
-            if (_checkTimer == null)
-                _checkTimer = new System.Threading.Timer(CheckCustomer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+            lock (AuthorizationSync)
+            {
+                _canceled = false;
+                _owner = false;
+                Interlocked.Exchange(ref _authorized, 1);
+                if (_checkTimer == null)
+                    _checkTimer = new System.Threading.Timer(CheckCustomer, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+            }
         }
 
         private static void CheckCustomer(object state)
         {
-            if (_owner) return;
+            if (_owner || _canceled) return;
             bool valid = false;
             try
             {
@@ -113,7 +188,11 @@ namespace BoltSnip
                     Request("check", File.ReadAllText(CustomerPath).Trim()) == "OK";
             }
             catch (Exception) { }
-            Interlocked.Exchange(ref _authorized, valid ? 1 : 0);
+            lock (AuthorizationSync)
+            {
+                if (!_owner && !_canceled)
+                    Interlocked.Exchange(ref _authorized, valid ? 1 : 0);
+            }
         }
 
         private static string Request(string operation, string key)
@@ -163,59 +242,59 @@ namespace BoltSnip
         internal ActivationDialog()
         {
             Text = "BoltSnip · 激活";
-            ClientSize = new Size(500, 388);
+            ClientSize = new Size(620, 510);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             BackColor = Surface;
             ForeColor = Ink;
-            Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
+            Font = new Font("Microsoft YaHei UI", 10f, FontStyle.Regular, GraphicsUnit.Point);
             AutoScaleMode = AutoScaleMode.Font;
 
-            ActivationMark mark = new ActivationMark { Location = new Point(26, 24), Size = new Size(44, 44) };
+            ActivationMark mark = new ActivationMark { Location = new Point(26, 27), Size = new Size(44, 44) };
             Label title = new Label
             {
-                Location = new Point(82, 22), Size = new Size(390, 31),
+                Location = new Point(82, 23), Size = new Size(510, 38),
                 Text = "开始使用 BoltSnip",
-                Font = new Font(Font.FontFamily, 15f, FontStyle.Bold, GraphicsUnit.Point),
+                Font = new Font(Font.FontFamily, 16f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Ink
             };
             Label subtitle = new Label
             {
-                Location = new Point(83, 55), Size = new Size(390, 21),
+                Location = new Point(83, 67), Size = new Size(510, 25),
                 Text = "完成激活后，即可截图、复制与保存。",
                 ForeColor = Muted
             };
             Panel headerRule = new Panel
             {
-                Location = new Point(26, 91), Size = new Size(448, 1),
+                Location = new Point(26, 113), Size = new Size(568, 1),
                 BackColor = BoltSnipMenuStyle.DividerColor
             };
 
             Label onlineTitle = new Label
             {
-                Location = new Point(28, 110), Size = new Size(170, 24),
+                Location = new Point(28, 140), Size = new Size(200, 28),
                 Text = "输入激活码",
-                Font = new Font(Font.FontFamily, 10f, FontStyle.Bold, GraphicsUnit.Point),
+                Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Ink
             };
             Label onlineHint = new Label
             {
-                Location = new Point(350, 113), Size = new Size(122, 20),
+                Location = new Point(392, 143), Size = new Size(200, 25),
                 Text = "客户使用 · 需联网",
                 TextAlign = ContentAlignment.MiddleRight,
                 ForeColor = Muted
             };
             RoundedSurface keySurface = new RoundedSurface
             {
-                Location = new Point(28, 143), Size = new Size(444, 40),
+                Location = new Point(28, 180), Size = new Size(564, 48),
                 BackColor = Color.White, CornerRadius = 10,
                 BorderColor = Color.FromArgb(197, 212, 218)
             };
             _key = new TextBox
             {
-                Location = new Point(14, 9), Size = new Size(416, 23),
+                Location = new Point(14, 12), Size = new Size(536, 24),
                 BorderStyle = BorderStyle.None,
                 BackColor = Color.White, ForeColor = Ink,
                 Font = new Font("Segoe UI", 11f, FontStyle.Regular, GraphicsUnit.Point)
@@ -226,13 +305,13 @@ namespace BoltSnip
             _key.TextChanged += delegate { ShowStatus("换机后在新电脑输入原码，旧电脑会自动失效。", false); };
             Label bindingHint = new Label
             {
-                Location = new Point(28, 196), Size = new Size(288, 21),
+                Location = new Point(28, 250), Size = new Size(325, 25),
                 Text = "同一时间仅限一台电脑使用",
                 ForeColor = Muted
             };
             RoundedActionButton activate = new RoundedActionButton
             {
-                Location = new Point(332, 186), Size = new Size(140, 38),
+                Location = new Point(440, 242), Size = new Size(152, 42),
                 Text = "联网激活", CornerRadius = 11,
                 BackColor = Accent, HoverColor = Color.FromArgb(31, 165, 184),
                 ForeColor = Color.White,
@@ -241,44 +320,44 @@ namespace BoltSnip
 
             Panel leftRule = new Panel
             {
-                Location = new Point(28, 250), Size = new Size(198, 1),
+                Location = new Point(28, 313), Size = new Size(258, 1),
                 BackColor = BoltSnipMenuStyle.DividerColor
             };
             Label alternative = new Label
             {
-                Location = new Point(235, 239), Size = new Size(30, 24),
+                Location = new Point(295, 300), Size = new Size(30, 28),
                 Text = "或", TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Muted
             };
             Panel rightRule = new Panel
             {
-                Location = new Point(274, 250), Size = new Size(198, 1),
+                Location = new Point(334, 313), Size = new Size(258, 1),
                 BackColor = BoltSnipMenuStyle.DividerColor
             };
 
             RoundedSurface offlineCard = new RoundedSurface
             {
-                Location = new Point(28, 272), Size = new Size(444, 66),
+                Location = new Point(28, 339), Size = new Size(564, 94),
                 BackColor = Color.White, CornerRadius = 12,
                 BorderColor = BoltSnipMenuStyle.DividerColor,
                 AccentRail = true
             };
             Label offlineTitle = new Label
             {
-                Location = new Point(16, 10), Size = new Size(218, 22),
+                Location = new Point(16, 15), Size = new Size(340, 27),
                 Text = "使用离线授权文件",
-                Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold, GraphicsUnit.Point),
+                Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Ink
             };
             Label offlineHint = new Label
             {
-                Location = new Point(16, 35), Size = new Size(260, 20),
+                Location = new Point(16, 52), Size = new Size(340, 25),
                 Text = "已有授权文件时，直接导入即可",
                 ForeColor = Muted
             };
             RoundedActionButton import = new RoundedActionButton
             {
-                Location = new Point(307, 15), Size = new Size(122, 36),
+                Location = new Point(427, 26), Size = new Size(122, 42),
                 Text = "选择文件…", CornerRadius = 9,
                 BackColor = Color.White, HoverColor = BoltSnipMenuStyle.HoverColor,
                 BorderColor = Color.FromArgb(174, 216, 222),
@@ -288,12 +367,12 @@ namespace BoltSnip
 
             _status = new Label
             {
-                Location = new Point(28, 352), Size = new Size(355, 22),
+                Location = new Point(28, 460), Size = new Size(470, 25),
                 ForeColor = Muted
             };
             RoundedActionButton cancel = new RoundedActionButton
             {
-                Location = new Point(399, 347), Size = new Size(73, 31),
+                Location = new Point(519, 455), Size = new Size(73, 34),
                 Text = "稍后", DialogResult = DialogResult.Cancel,
                 CornerRadius = 8, BackColor = Surface,
                 HoverColor = BoltSnipMenuStyle.HoverColor, ForeColor = Muted
@@ -306,10 +385,116 @@ namespace BoltSnip
                 bindingHint, activate, leftRule, alternative, rightRule, offlineCard,
                 _status, cancel
             });
+            Control[] activationControls =
+            {
+                onlineTitle, onlineHint, keySurface, bindingHint, activate,
+                leftRule, alternative, rightRule, offlineCard, _status
+            };
+            string authorizationMethod, authorizationDetail;
+            if (LicenseManager.TryGetAuthorizationInfo(out authorizationMethod, out authorizationDetail))
+            {
+                Text = "BoltSnip · 授权信息";
+                title.Text = "当前已授权";
+                subtitle.Text = "此设备可以使用 BoltSnip。";
+                ClientSize = new Size(620, 420);
+                foreach (Control control in activationControls) control.Visible = false;
+                RoundedSurface infoCard = new RoundedSurface
+                {
+                    Location = new Point(28, 140), Size = new Size(564, 190),
+                    BackColor = Color.White, CornerRadius = 12,
+                    BorderColor = BoltSnipMenuStyle.DividerColor, AccentRail = true
+                };
+                Label methodCaption = new Label
+                {
+                    Location = new Point(18, 18), Size = new Size(528, 24),
+                    Text = "授权方式", ForeColor = Muted
+                };
+                Label methodValue = new Label
+                {
+                    Location = new Point(18, 51), Size = new Size(528, 28),
+                    Text = authorizationMethod,
+                    Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold, GraphicsUnit.Point),
+                    ForeColor = Ink
+                };
+                Label detailLabel = new Label
+                {
+                    Location = new Point(18, 105), Size = new Size(528, 24),
+                    Text = authorizationMethod == "离线授权文件" ? "本机授权文件" : "激活码",
+                    ForeColor = Muted
+                };
+                TextBox detail = new TextBox
+                {
+                    Location = new Point(22, 142), Size = new Size(524, 28),
+                    Text = authorizationDetail, ReadOnly = true,
+                    BorderStyle = BorderStyle.None, BackColor = Color.White,
+                    ForeColor = Ink,
+                    Font = authorizationMethod == "联网激活码"
+                        ? new Font(Font.FontFamily, 10.5f, FontStyle.Bold, GraphicsUnit.Point)
+                        : new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point)
+                };
+                infoCard.Controls.AddRange(new Control[] { methodCaption, methodValue, detailLabel, detail });
+                Controls.Add(infoCard);
+                RoundedActionButton change = new RoundedActionButton
+                {
+                    Location = new Point(28, 355), Size = new Size(152, 42),
+                    Text = "更换授权", CornerRadius = 10,
+                    BackColor = Accent, HoverColor = Color.FromArgb(31, 165, 184),
+                    ForeColor = Color.White,
+                    Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold, GraphicsUnit.Point)
+                };
+                change.Click += delegate
+                {
+                    infoCard.Visible = false;
+                    change.Visible = false;
+                    foreach (Control control in activationControls) control.Visible = true;
+                    Text = "BoltSnip · 更换授权";
+                    title.Text = "更换授权";
+                    subtitle.Text = "输入激活码，或导入已有授权文件。";
+                    cancel.Text = "关闭";
+                    cancel.Location = new Point(519, 455);
+                    ClientSize = new Size(620, 510);
+                    AcceptButton = activate;
+                    _key.Focus();
+                };
+                Controls.Add(change);
+                RoundedActionButton revoke = new RoundedActionButton
+                {
+                    Location = new Point(199, 355), Size = new Size(152, 42),
+                    Text = "取消授权", CornerRadius = 10,
+                    BackColor = Color.White, HoverColor = Color.FromArgb(253, 240, 239),
+                    BorderColor = Color.FromArgb(221, 159, 155),
+                    ForeColor = Color.FromArgb(165, 66, 61)
+                };
+                change.Click += delegate { revoke.Visible = false; };
+                revoke.Click += delegate
+                {
+                    using (AuthorizationCancellationDialog confirmation = new AuthorizationCancellationDialog())
+                        if (confirmation.ShowDialog(this) != DialogResult.Yes) return;
+                    try
+                    {
+                        LicenseManager.CancelAuthorization();
+                        change.PerformClick();
+                        ShowStatus("已取消本机授权。凭据已备份，可重新激活。", false);
+                    }
+                    catch (Exception)
+                    {
+                        MessageBox.Show(this, "无法取消授权，请检查本机授权文件的访问权限。",
+                            "取消授权失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                };
+                Controls.Add(revoke);
+                cancel.Location = new Point(519, 359);
+                cancel.Text = "关闭";
+                AcceptButton = change;
+                Shown += delegate { change.Focus(); };
+            }
+            else
+            {
+                AcceptButton = activate;
+                Shown += delegate { _key.Focus(); };
+            }
             ShowStatus("换机后在新电脑输入原码，旧电脑会自动失效。", false);
-            AcceptButton = activate;
             CancelButton = cancel;
-            Shown += delegate { _key.Focus(); };
         }
 
         private void ShowStatus(string message, bool error)
@@ -349,6 +534,78 @@ namespace BoltSnip
                 }
                 catch (Exception) { ShowStatus("无法读取或保存授权文件，请重试。", true); }
             }
+        }
+    }
+
+    internal sealed class AuthorizationCancellationDialog : Form
+    {
+        internal AuthorizationCancellationDialog()
+        {
+            Text = "BoltSnip · 取消授权";
+            ClientSize = new Size(500, 222);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            BackColor = BoltSnipMenuStyle.SurfaceColor;
+            ForeColor = BoltSnipMenuStyle.TextColor;
+            Font = new Font("Microsoft YaHei UI", 10f, FontStyle.Regular, GraphicsUnit.Point);
+            AutoScaleMode = AutoScaleMode.Font;
+
+            RoundedSurface mark = new RoundedSurface
+            {
+                Location = new Point(28, 29), Size = new Size(48, 48),
+                BackColor = Color.FromArgb(253, 240, 239),
+                BorderColor = Color.FromArgb(253, 240, 239), CornerRadius = 12
+            };
+            Label symbol = new Label
+            {
+                Dock = DockStyle.Fill, Text = "!",
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font(Font.FontFamily, 19f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = Color.FromArgb(165, 66, 61)
+            };
+            mark.Controls.Add(symbol);
+            Label title = new Label
+            {
+                Location = new Point(91, 29), Size = new Size(380, 34),
+                Text = "取消此电脑的授权？",
+                Font = new Font(Font.FontFamily, 14f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = BoltSnipMenuStyle.TextColor
+            };
+            Label explanation = new Label
+            {
+                Location = new Point(92, 70), Size = new Size(380, 28),
+                Text = "取消后，需重新激活才能继续截图。",
+                ForeColor = BoltSnipMenuStyle.MutedTextColor
+            };
+            Panel rule = new Panel
+            {
+                Location = new Point(26, 128), Size = new Size(448, 1),
+                BackColor = BoltSnipMenuStyle.DividerColor
+            };
+            RoundedActionButton keep = new RoundedActionButton
+            {
+                Location = new Point(230, 153), Size = new Size(112, 42),
+                Text = "继续使用", DialogResult = DialogResult.Cancel,
+                CornerRadius = 10, BackColor = Color.White,
+                HoverColor = BoltSnipMenuStyle.HoverColor,
+                BorderColor = BoltSnipMenuStyle.DividerColor,
+                ForeColor = BoltSnipMenuStyle.TextColor
+            };
+            RoundedActionButton confirm = new RoundedActionButton
+            {
+                Location = new Point(358, 153), Size = new Size(114, 42),
+                Text = "取消授权", DialogResult = DialogResult.Yes,
+                CornerRadius = 10, BackColor = Color.FromArgb(180, 73, 67),
+                HoverColor = Color.FromArgb(159, 58, 53),
+                ForeColor = Color.White,
+                Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold, GraphicsUnit.Point)
+            };
+            Controls.AddRange(new Control[] { mark, title, explanation, rule, keep, confirm });
+            AcceptButton = keep;
+            CancelButton = keep;
         }
     }
 

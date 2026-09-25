@@ -30,6 +30,13 @@ namespace BoltSnip
             _menuBoldFont = new Font(_menuFont, FontStyle.Bold);
             _trayMenu = new BoltSnipContextMenuStrip();
             BoltSnipMenuStyle.Apply(_trayMenu, _menuFont);
+            ToolStripLabel version = new ToolStripLabel("BoltSnip · v" + ReleaseIdentity.Version);
+            version.Font = _menuBoldFont;
+            BoltSnipMenuStyle.ApplyItem(version);
+            _trayMenu.Items.Add(version);
+            ToolStripSeparator versionSeparator = new ToolStripSeparator();
+            BoltSnipMenuStyle.ApplySeparator(versionSeparator);
+            _trayMenu.Items.Add(versionSeparator);
             _captureMenuItem = new ToolStripMenuItem();
             _captureMenuItem.Font = _menuBoldFont;
             _captureMenuItem.Click += delegate { BeginCapture(); };
@@ -45,7 +52,7 @@ namespace BoltSnip
             _trayMenu.Items.Add(saveDirectorySettings);
             if (LicenseManager.Enabled)
             {
-                ToolStripMenuItem license = new ToolStripMenuItem("更换授权…");
+                ToolStripMenuItem license = new ToolStripMenuItem("授权管理…");
                 license.Click += delegate
                 {
                     using (ActivationDialog dialog = new ActivationDialog())
@@ -70,12 +77,11 @@ namespace BoltSnip
             _trayIcon = new NotifyIcon();
             _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             _trayIcon.Icon = _applicationIcon ?? SystemIcons.Application;
-            _trayIcon.Text = "BoltSnip · " + _hotkey.ShortcutText;
             _trayIcon.ContextMenuStrip = _trayMenu;
-            _trayIcon.Visible = true;
             _trayIcon.DoubleClick += delegate { BeginCapture(); };
 
             UpdateShortcutLabels();
+            _trayIcon.Visible = true;
 
             if (_hotkey.ShortcutText == "托盘菜单")
             {
@@ -206,7 +212,7 @@ namespace BoltSnip
         {
             _captureMenuItem.Text = "开始截图";
             _captureMenuItem.ShortcutKeyDisplayString = _hotkey.ShortcutText;
-            _trayIcon.Text = "BoltSnip · " + _hotkey.ShortcutText;
+            _trayIcon.Text = "BoltSnip v" + ReleaseIdentity.Version + " · " + _hotkey.ShortcutText;
         }
 
         private void BeginCapture()
