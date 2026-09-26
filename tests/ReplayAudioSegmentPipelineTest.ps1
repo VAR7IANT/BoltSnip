@@ -18,6 +18,11 @@ foreach ($path in @($Executable, $Ffmpeg, $Ffprobe)) {
 $runId = $Mode + '-synthetic-' + [DateTime]::Now.ToString('yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $runDirectory = Join-Path $EvidenceDirectory $runId
 [IO.Directory]::CreateDirectory($runDirectory) | Out-Null
+$captureLimitSeconds = if ($Mode -eq 'Audio30') { [Math]::Min($DurationSeconds + 10, 46) } else { $DurationSeconds + 10 }
+[IO.File]::WriteAllText(
+    (Join-Path $runDirectory 'test-parameters.txt'),
+    ('Mode={0}; RequestedDurationSeconds={1}; CaptureLimitSeconds={2}' -f $Mode, $DurationSeconds, $captureLimitSeconds),
+    [Text.UTF8Encoding]::new($false))
 $diagnosticPath = Join-Path $runDirectory 'diagnostic.log'
 $previousFfmpegPath = [Environment]::GetEnvironmentVariable('BOLTSNIP_FFMPEG_PATH', 'Process')
 $previousDiagnosticPath = [Environment]::GetEnvironmentVariable('BOLTSNIP_DIAGNOSTIC_LOG_PATH', 'Process')
@@ -225,6 +230,11 @@ $formatProperty = $null
 $sessionWorker = $null
 $performanceSamples = New-Object System.Collections.Generic.List[object]
 $savePaths = @()
+function Write-TestProgress([string]$Stage) {
+    $elapsed = if ($null -ne $watch) { [Math]::Round($watch.Elapsed.TotalSeconds, 2) } else { 0 }
+    $text = '{0:o} elapsed={1}s stage={2}' -f [DateTime]::UtcNow, $elapsed, $Stage
+    [IO.File]::AppendAllText((Join-Path $runDirectory 'test-progress.txt'), $text + [Environment]::NewLine)
+}
 try {
     $wavePath = Join-Path $runDirectory 'beep-pattern.wav'
     if ($Mode -ne 'Silence') { New-BeepWave $wavePath }
@@ -245,6 +255,12 @@ try {
     $startAudio = $audioType.GetMethod('ConnectAndStart', [Reflection.BindingFlags]'Instance,NonPublic')
     $stopAudio = $audioType.GetMethod('Stop', [Reflection.BindingFlags]'Instance,NonPublic')
     $disposeAudio = $audioType.GetMethod('Dispose', [Reflection.BindingFlags]'Instance,Public')
+    $connectRunnerPath = Join-Path $runDirectory 'ReplayAudioConnectRunner.dll'
+    $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+    if (-not [IO.File]::Exists($compiler)) { $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
+    & $compiler /nologo /target:library ("/out:" + $connectRunnerPath) (Join-Path $PSScriptRoot 'ReplayAudioConnectRunner.cs')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not compile the audio startup runner.' }
+    $connectRunnerType = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($connectRunnerPath)).GetType('ReplayAudioConnectRunner', $true)
     $format = $formatProperty.GetValue($audioSession, $null)
     $audioFormatType = $assembly.GetType('BoltSnip.ReplayAudioFormat', $true)
     $formatSampleRate = [int]$audioFormatType.GetProperty('SampleRate', [Reflection.BindingFlags]'Instance,NonPublic').GetValue($format, $null)
@@ -284,7 +300,21 @@ try {
     $encoderProcess.StartInfo = $startInfo
     $watch = [Diagnostics.Stopwatch]::StartNew()
     if (-not $encoderProcess.Start()) { throw 'FFmpeg did not start.' }
-    [void]$startAudio.Invoke($audioSession, [object[]]@(5000))
+    Write-TestProgress 'ffmpeg-started'
+    $sessionWorker = [Activator]::CreateInstance($connectRunnerType, [object[]]@($audioSession, $startAudio, 5000))
+    [void]$sessionWorker.GetType().GetMethod('Start').Invoke($sessionWorker, $null)
+    $connectWorker = $sessionWorker.GetType().GetProperty('Worker').GetValue($sessionWorker, $null)
+    Write-TestProgress 'connect-thread-started'
+    if (-not $connectWorker.Join(10000)) {
+        [void]$stopAudio.Invoke($audioSession, $null)
+        if (-not $connectWorker.Join(3000)) { throw 'Audio startup thread did not exit after stop.' }
+    }
+    $connectFailure = [string]$sessionWorker.GetType().GetProperty('FailureType').GetValue($sessionWorker, $null)
+    if (-not [string]::IsNullOrEmpty($connectFailure)) {
+        $message = [string]$sessionWorker.GetType().GetProperty('FailureMessage').GetValue($sessionWorker, $null)
+        throw ('Audio startup failed: {0}: {1}' -f $connectFailure, $message)
+    }
+    Write-TestProgress 'audio-started'
     if ([string]$audioStateProperty.GetValue($audioSession, $null) -ne 'Active') { throw 'WASAPI did not become active.' }
     if ($null -ne $soundPlayer) {
         $nextPulseBoundary = ([Math]::Floor($watch.Elapsed.TotalSeconds / 2) + 1) * 2
@@ -297,6 +327,10 @@ try {
     $lastProgressSecond = -30
 
     while ($watch.Elapsed.TotalSeconds -lt $DurationSeconds) {
+        if ($watch.Elapsed.TotalSeconds -ge $captureLimitSeconds) {
+            throw ('Synthetic segment test exceeded its bounded capture period; mode={0}; requested={1}s; cap={2}s.' -f
+                $Mode, $DurationSeconds, $captureLimitSeconds)
+        }
         if ($Mode -eq 'Long' -and -not $checkpointA -and $watch.Elapsed.TotalSeconds -ge 40) {
             $segments = @(Get-StableSegments $listPath)
             $segments = @(Select-StreamCompleteSegments $segments)
@@ -334,16 +368,22 @@ try {
     }
     $watch.Stop()
 
+    Write-TestProgress 'capture-loop-ended'
+    Write-TestProgress 'before-audio-stop'
     [void]$stopAudio.Invoke($audioSession, $null)
+    Write-TestProgress 'after-audio-stop'
     [void]$disposeAudio.Invoke($audioSession, $null)
+    Write-TestProgress 'after-audio-dispose'
     $audioSession = $null
     if ($null -ne $soundPlayer) { $soundPlayer.Stop() }
+    Write-TestProgress 'before-ffmpeg-q'
     $encoderProcess.StandardInput.WriteLine('q')
     $encoderProcess.StandardInput.Flush()
     if (-not $encoderProcess.WaitForExit(15000)) {
         try { $encoderProcess.Kill() } catch { }
         throw 'FFmpeg did not stop after audio pipe shutdown and q input.'
     }
+    Write-TestProgress ('after-ffmpeg-exit-' + $encoderProcess.ExitCode)
     if ($encoderProcess.ExitCode -ne 0) { throw "FFmpeg exited with code $($encoderProcess.ExitCode)." }
 
     $segments = @(Select-StreamCompleteSegments (Get-CompletedSegments $listPath))
@@ -351,6 +391,7 @@ try {
     $maxSegments = [int][Math]::Floor(300 / $settingsType.GetField('segment_duration_seconds', [Reflection.BindingFlags]'Instance,NonPublic').GetValue($settings))
     $finalSegments = @($segments | Select-Object -Last $maxSegments)
     $savePaths += Save-CompletedSegments $finalSegments 'Final-Replay'
+    Write-TestProgress 'after-final-remux'
 
     $randomIndexes = @(0, [int][Math]::Floor(($segments.Count - 1) / 2), ($segments.Count - 1)) | Select-Object -Unique
     $segmentProbes = @()

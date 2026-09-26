@@ -228,6 +228,7 @@ namespace BoltSnip
         {
             Thread recordingThread;
             Thread savingThread;
+            ReplayEncoder encoder;
             ReplaySaver saver;
             ReplayBuffer buffer;
             lock (_syncRoot)
@@ -241,6 +242,7 @@ namespace BoltSnip
                 _stopRequested = true;
                 _stopEvent.Set();
                 buffer = _buffer;
+                encoder = _encoder;
                 if (_state != ReplayState.Disabled)
                 {
                     _state = ReplayState.Stopping;
@@ -260,6 +262,11 @@ namespace BoltSnip
                 saver.Cancel();
             }
             JoinQuietly(recordingThread, 12000);
+            RunEncoderShutdownFailSafe(
+                recordingThread != null && recordingThread.IsAlive,
+                delegate { if (encoder != null) encoder.Stop(); },
+                delegate { ReplayDiagnostics.Write("Forced encoder shutdown after recording worker timeout"); },
+                delegate { JoinQuietly(recordingThread, 1000); });
             JoinQuietly(savingThread, 7000);
 
             lock (_syncRoot)
@@ -316,6 +323,10 @@ namespace BoltSnip
                     }
                     catch (Exception exception)
                     {
+                        if (IsStopRequested())
+                        {
+                            throw new OperationCanceledException("Audio startup was stopped.", exception);
+                        }
                         ReplayDiagnostics.Write("Audio endpoint unavailable: " + exception.Message);
                         SetAudioState(ReplayAudioState.Unavailable);
                         if (audioSession != null)
@@ -329,28 +340,24 @@ namespace BoltSnip
                 if (audioSession == null)
                 {
                     encoder.Start(cacheDirectory, _settings, captureSession, null);
+                    StabilizeEncoderStartup(encoder);
                 }
                 else
                 {
                     Exception audioStartFailure;
-                    bool audioStarted = TryStartWithAudio(delegate
+                    bool audioStarted = TryStartWithAudioAndFallback(delegate
                     {
                         encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
                         audioSession.ConnectAndStart(5000);
-                    }, out audioStartFailure);
-
-                    if (audioStarted)
-                    {
-                        SetAudioState(ReplayAudioState.Active);
-                    }
-                    else
+                        StabilizeEncoderStartup(encoder);
+                    }, IsStopRequested, delegate
                     {
                         if (IsStopRequested())
                         {
                             throw new OperationCanceledException("Audio startup was stopped.");
                         }
 
-                        ReplayDiagnostics.Write("Audio endpoint unavailable: " + audioStartFailure.Message);
+                        ReplayDiagnostics.Write("Audio startup failed; retrying with video-only capture");
                         SetAudioState(ReplayAudioState.Unavailable);
                         audioSession.Dispose();
                         audioSession = null;
@@ -364,24 +371,21 @@ namespace BoltSnip
                             _buffer = buffer;
                             if (_disposed || _stopRequested)
                             {
-                                return;
+                                throw new OperationCanceledException("Replay startup was stopped.");
                             }
                         }
                         encoder.Start(cacheDirectory, _settings, captureSession, null);
+                        StabilizeEncoderStartup(encoder);
+                    }, out audioStartFailure);
+
+                    if (audioStarted)
+                    {
+                        SetAudioState(ReplayAudioState.Active);
                     }
-                }
-                DateTime startupDeadline = DateTime.UtcNow.AddSeconds(3);
-                while (!IsStopRequested() && !encoder.HasExited && DateTime.UtcNow < startupDeadline)
-                {
-                    Thread.Sleep(100);
-                }
-                if (IsStopRequested())
-                {
-                    return;
-                }
-                if (encoder.HasExited)
-                {
-                    throw BuildEncoderFailure(encoder, "桌面捕获或 NVENC 初始化失败");
+                    else
+                    {
+                        ReplayDiagnostics.Write("Audio endpoint unavailable: " + audioStartFailure.Message);
+                    }
                 }
 
                 lock (_syncRoot)
@@ -611,6 +615,84 @@ namespace BoltSnip
             {
                 failure = exception;
                 return false;
+            }
+        }
+
+        internal static bool TryStartWithAudioAndFallback(
+            Action startAndStabilizeWithAudio,
+            Func<bool> isStopRequested,
+            Action cleanAndStartVideoOnly,
+            out Exception audioFailure)
+        {
+            if (startAndStabilizeWithAudio == null)
+            {
+                throw new ArgumentNullException("startAndStabilizeWithAudio");
+            }
+            if (isStopRequested == null)
+            {
+                throw new ArgumentNullException("isStopRequested");
+            }
+            if (cleanAndStartVideoOnly == null)
+            {
+                throw new ArgumentNullException("cleanAndStartVideoOnly");
+            }
+
+            try
+            {
+                startAndStabilizeWithAudio();
+                audioFailure = null;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (isStopRequested())
+                {
+                    throw new OperationCanceledException("Audio startup was stopped.", exception);
+                }
+
+                audioFailure = exception;
+                cleanAndStartVideoOnly();
+                return false;
+            }
+        }
+
+        internal static void RunEncoderShutdownFailSafe(
+            bool recordingWorkerTimedOut,
+            Action stopEncoder,
+            Action logForcedShutdown,
+            Action joinAfterStop)
+        {
+            if (!recordingWorkerTimedOut)
+            {
+                return;
+            }
+            if (stopEncoder == null) throw new ArgumentNullException("stopEncoder");
+            if (logForcedShutdown == null) throw new ArgumentNullException("logForcedShutdown");
+            if (joinAfterStop == null) throw new ArgumentNullException("joinAfterStop");
+
+            stopEncoder();
+            joinAfterStop();
+            logForcedShutdown();
+        }
+
+        private void StabilizeEncoderStartup(ReplayEncoder encoder)
+        {
+            DateTime startupDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (true)
+            {
+                if (IsStopRequested())
+                {
+                    throw new OperationCanceledException("Replay startup was stopped.");
+                }
+                if (encoder.HasExited)
+                {
+                    throw BuildEncoderFailure(encoder, "桌面捕获或 NVENC 初始化失败");
+                }
+                if (DateTime.UtcNow >= startupDeadline)
+                {
+                    return;
+                }
+                Thread.Sleep(100);
             }
         }
 

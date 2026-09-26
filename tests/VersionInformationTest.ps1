@@ -1,11 +1,11 @@
 param(
-    [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent)
+    [string]$ProjectRoot = (Split-Path $PSScriptRoot -Parent),
+    [string]$Executable = (Join-Path $ProjectRoot 'bin\BoltSnip.exe')
 )
 
 $ErrorActionPreference = 'Stop'
-$executable = Join-Path $ProjectRoot 'bin\BoltSnip.exe'
 $definition = Get-Content -Raw -Encoding UTF8 (Join-Path $ProjectRoot 'release.json') | ConvertFrom-Json
-$assembly = [Reflection.Assembly]::LoadFile((Resolve-Path $executable))
+$assembly = [Reflection.Assembly]::LoadFile((Resolve-Path $Executable))
 $identityType = $assembly.GetType('BoltSnip.ReleaseIdentity', $true)
 $flags = [Reflection.BindingFlags]'Static,NonPublic'
 $runtimeProduct = $identityType.GetProperty('ProductName', $flags).GetValue($null, $null)
