@@ -1,5 +1,6 @@
 param(
-    [string]$Executable = (Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\BoltSnip.exe')
+    [string]$Executable = (Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\BoltSnip.exe'),
+    [int]$Rounds = 20
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,18 +71,22 @@ try {
     $pipeArgument = $type.GetProperty('PipeArgument', $flags)
     $audioState = $type.GetProperty('State', $flags)
     $workerField = $type.GetField('_worker', $flags)
+    $pipeField = $type.GetField('_pipe', $flags)
     $drainType = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($clientAssemblyPath)).GetType('PipeDrain', $true)
     $results = @()
 
-    for ($round = 1; $round -le 3; $round++) {
+    for ($round = 1; $round -le $Rounds; $round++) {
         $session = $null
         $drain = $null
         $worker = $null
+        $pipeHandle = $null
+        $pipeName = $null
         $started = $false
         $prepareError = $null
         $watch = [Diagnostics.Stopwatch]::StartNew()
         try {
             $session = $constructor.Invoke(@())
+            $pipeHandle = $pipeField.GetValue($session).SafePipeHandle
             try {
                 [void]$prepare.Invoke($session, [object[]]@(5000))
                 $pipe = [string]$pipeArgument.GetValue($session, $null)
@@ -106,20 +111,32 @@ try {
         }
 
         $workerStopped = $null -eq $worker -or -not $worker.IsAlive
+        $pipeHandleClosed = $null -ne $pipeHandle -and [bool]$pipeHandle.IsClosed
         $passed = $workerStopped -and $watch.Elapsed.TotalSeconds -lt 12 -and
-            [string]$prepareError -notmatch 'ObjectDisposedException'
+            $pipeHandleClosed -and
+            [string]$prepareError -notmatch 'ObjectDisposedException|SafeHandle'
         $results += [pscustomobject]@{
             Round = $round
             WASAPIStarted = $started
             AudioState = if ($null -ne $session) { [string]$audioState.GetValue($session, $null) } else { 'ConstructorFailed' }
             WorkerStopped = $workerStopped
+            PipeHandleClosed = $pipeHandleClosed
             DisposeMs = [Math]::Round($watch.Elapsed.TotalMilliseconds)
             Failure = $prepareError
             Passed = $passed
         }
     }
 
-    $results | Format-List
+    $results | Format-Table -AutoSize
+    $results | Where-Object { -not $_.Passed } | Select-Object Round,Failure | Format-List
+    [pscustomobject]@{
+        ExpectedRounds = $Rounds
+        CompletedRounds = $results.Count
+        ObjectDisposedFailures = @($results | Where-Object { [string]$_.Failure -match 'ObjectDisposedException|SafeHandle' }).Count
+        WorkerLeftovers = @($results | Where-Object { -not $_.WorkerStopped }).Count
+        PipeLeftovers = @($results | Where-Object { -not $_.PipeHandleClosed }).Count
+        Passed = (@($results | Where-Object { -not $_.Passed }).Count -eq 0)
+    } | Format-List
     if ($results.Where({ -not $_.Passed }).Count -gt 0) { exit 1 }
 }
 finally {

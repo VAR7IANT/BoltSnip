@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
@@ -15,8 +16,10 @@ namespace BoltSnip
         {
             private readonly object _syncRoot = new object();
             private readonly ManualResetEvent _completedEvent = new ManualResetEvent(false);
+            private readonly List<Action> _completionActions = new List<Action>();
             private Exception _failure;
             private bool _completed;
+            private bool _completionActionsFinished;
             private bool _waitingFinished;
             private bool _eventDisposed;
 
@@ -40,8 +43,56 @@ namespace BoltSnip
                     }
                     _failure = failure;
                     _completed = true;
-                    _completedEvent.Set();
-                    DisposeEventIfFinished();
+                }
+
+                while (true)
+                {
+                    Action[] actions;
+                    lock (_syncRoot)
+                    {
+                        if (_completionActions.Count == 0)
+                        {
+                            _completionActionsFinished = true;
+                            _completedEvent.Set();
+                            DisposeEventIfFinished();
+                            return;
+                        }
+
+                        actions = _completionActions.ToArray();
+                        _completionActions.Clear();
+                    }
+
+                    foreach (Action action in actions)
+                    {
+                        try { action(); }
+                        catch (Exception exception)
+                        {
+                            ReplayDiagnostics.Write("Deferred audio pipe cleanup failed: " + exception.Message);
+                        }
+                    }
+                }
+            }
+
+            internal void RunAfterCompletion(Action action)
+            {
+                if (action == null)
+                {
+                    throw new ArgumentNullException("action");
+                }
+
+                bool runNow;
+                lock (_syncRoot)
+                {
+                    runNow = _completionActionsFinished;
+                    if (!runNow)
+                    {
+                        _completionActions.Add(action);
+                    }
+                }
+
+                if (runNow)
+                {
+                    action();
                 }
             }
 
@@ -56,7 +107,7 @@ namespace BoltSnip
 
             private void DisposeEventIfFinished()
             {
-                if (_completed && _waitingFinished && !_eventDisposed)
+                if (_completionActionsFinished && _waitingFinished && !_eventDisposed)
                 {
                     _eventDisposed = true;
                     _completedEvent.Dispose();
@@ -72,6 +123,7 @@ namespace BoltSnip
         private const int WorkerStopTimeoutMilliseconds = 1500;
 
         private readonly object _syncRoot = new object();
+        private readonly object _pipeSyncRoot = new object();
         private readonly ManualResetEvent _stopEvent = new ManualResetEvent(false);
         private readonly ManualResetEvent _startEvent = new ManualResetEvent(false);
         private readonly ManualResetEvent _preparedEvent = new ManualResetEvent(false);
@@ -84,8 +136,13 @@ namespace BoltSnip
         private ReplayAudioState _state = ReplayAudioState.Starting;
         private Exception _preparationFailure;
         private bool _disposed;
+        private bool _workerStopped;
+        private bool _sessionEventsDisposed;
+        private bool _pipeDisposed;
+        private int _activeConnectCalls;
         private int _pipeEndWaitPending;
         private int _pipeDisposeQueued;
+        private PipeWaitCompletion _activePipeWaitCompletion;
         private int _workerNativeThreadId;
         private long _bytesWritten;
         private ulong _firstAudioDevicePosition;
@@ -191,8 +248,43 @@ namespace BoltSnip
 
         internal void ConnectAndStart(int timeoutMilliseconds)
         {
+            lock (_syncRoot)
+            {
+                if (_disposed)
+                {
+                    throw new OperationCanceledException("System audio startup was stopped.");
+                }
+                _activeConnectCalls++;
+            }
+
+            try
+            {
+                ConnectAndStartCore(timeoutMilliseconds);
+            }
+            finally
+            {
+                lock (_syncRoot)
+                {
+                    _activeConnectCalls--;
+                    TryDisposeSessionEventsUnsafe();
+                }
+            }
+        }
+
+        private void ConnectAndStartCore(int timeoutMilliseconds)
+        {
             WaitUntilPrepared(timeoutMilliseconds);
-            if (!_pipe.IsConnected)
+            bool pipeConnected;
+            lock (_pipeSyncRoot)
+            {
+                if (_pipeDisposed || _pipeDisposeQueued != 0 || _stopEvent.WaitOne(0))
+                {
+                    throw new OperationCanceledException("System audio startup was stopped.");
+                }
+                pipeConnected = _pipe.IsConnected;
+            }
+
+            if (!pipeConnected)
             {
                 PipeWaitCompletion completion = new PipeWaitCompletion();
                 IAsyncResult connection = null;
@@ -200,31 +292,55 @@ namespace BoltSnip
                 DateTime connectionDeadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
                 try
                 {
-                    connection = _pipe.BeginWaitForConnection(null, null);
-                    Interlocked.Exchange(ref _pipeEndWaitPending, 1);
-                    endWaitThread = new Thread(delegate()
+                    lock (_pipeSyncRoot)
+                    {
+                        if (_pipeDisposed || _pipeDisposeQueued != 0 || _stopEvent.WaitOne(0))
+                        {
+                            throw new OperationCanceledException("System audio startup was stopped.");
+                        }
+
+                        _activePipeWaitCompletion = completion;
+                        _pipeEndWaitPending = 1;
+                        try
+                        {
+                            connection = _pipe.BeginWaitForConnection(null, null);
+                        }
+                        catch
+                        {
+                            _pipeEndWaitPending = 0;
+                            _activePipeWaitCompletion = null;
+                            Monitor.PulseAll(_pipeSyncRoot);
+                            completion.Complete(null);
+                            throw;
+                        }
+                    }
+
+                    Action endWait = delegate
                     {
                         Exception failure = null;
                         try { _pipe.EndWaitForConnection(connection); }
                         catch (Exception exception) { failure = exception; }
-                        Interlocked.Exchange(ref _pipeEndWaitPending, 0);
-                        completion.Complete(failure);
-                    });
+                        CompletePendingPipeWait(completion, failure);
+                    };
+
+                    endWaitThread = new Thread(new ThreadStart(endWait));
                     endWaitThread.IsBackground = true;
                     endWaitThread.Name = "BoltSnip Replay Audio Pipe Wait";
-                    endWaitThread.Start();
-
-                    using (WaitHandle connectionSignal = connection.AsyncWaitHandle)
+                    try
                     {
-                        WaitForStartupSignal(
-                            connectionSignal,
-                            RemainingTimeoutMilliseconds(connectionDeadline),
-                            "Timed out waiting for FFmpeg to connect to the audio pipe.");
-                        WaitForStartupSignal(
-                            completion.Signal,
-                            RemainingTimeoutMilliseconds(connectionDeadline),
-                            "Timed out completing the FFmpeg audio pipe connection.");
+                        endWaitThread.Start();
                     }
+                    catch
+                    {
+                        CancelPendingPipeConnection();
+                        endWait();
+                        throw;
+                    }
+
+                    WaitForStartupSignal(
+                        completion.Signal,
+                        RemainingTimeoutMilliseconds(connectionDeadline),
+                        "Timed out waiting for FFmpeg to connect to the audio pipe.");
 
                     Exception connectionFailure = completion.Failure;
                     if (connectionFailure != null)
@@ -236,25 +352,25 @@ namespace BoltSnip
                 }
                 catch
                 {
-                    if (endWaitThread != null)
+                    if (connection != null)
                     {
                         CancelPendingPipeConnection();
                         bool endWaitCompleted = false;
                         try { endWaitCompleted = completion.Signal.WaitOne(WorkerStopTimeoutMilliseconds); } catch { }
                         if (endWaitCompleted)
                         {
-                            try { _pipe.Dispose(); } catch { }
+                            DisposePipeSafely();
                         }
                         else
                         {
-                            ReplayDiagnostics.Write("Audio pipe wait did not settle after cancellation; queued pipe cleanup");
-                            QueuePipeDisposal();
+                            ReplayDiagnostics.Write("Audio pipe wait did not settle after cancellation; deferring pipe disposal until EndWait completes");
+                            QueuePipeDisposal(completion);
                         }
                     }
                     else
                     {
                         CancelPendingPipeConnection();
-                        try { _pipe.Dispose(); } catch { }
+                        DisposePipeSafely();
                         completion.Complete(null);
                     }
                     throw;
@@ -285,8 +401,14 @@ namespace BoltSnip
 
         internal void Stop()
         {
-            _stopEvent.Set();
-            _startEvent.Set();
+            lock (_syncRoot)
+            {
+                if (!_sessionEventsDisposed)
+                {
+                    _stopEvent.Set();
+                    _startEvent.Set();
+                }
+            }
             if (_worker != null && _worker != Thread.CurrentThread && _worker.IsAlive)
             {
                 if (!_worker.Join(WorkerStopTimeoutMilliseconds))
@@ -325,6 +447,19 @@ namespace BoltSnip
 
         private void CancelPendingPipeConnection()
         {
+            lock (_pipeSyncRoot)
+            {
+                CancelPendingPipeConnectionUnsafe();
+            }
+        }
+
+        private void CancelPendingPipeConnectionUnsafe()
+        {
+            if (_pipeDisposed || _pipeEndWaitPending == 0)
+            {
+                return;
+            }
+
             try
             {
                 if (!CancelIoEx(_pipe.SafePipeHandle, IntPtr.Zero))
@@ -344,38 +479,118 @@ namespace BoltSnip
 
         private void DisposePipeSafely()
         {
-            if (Interlocked.CompareExchange(ref _pipeDisposeQueued, 0, 0) != 0)
+            PipeWaitCompletion completion = null;
+            bool disposeNow = false;
+            lock (_pipeSyncRoot)
             {
+                if (_pipeDisposed || Interlocked.CompareExchange(ref _pipeDisposeQueued, 0, 0) != 0)
+                {
+                    return;
+                }
+
+                if (_pipeEndWaitPending != 0)
+                {
+                    completion = _activePipeWaitCompletion;
+                    if (completion == null)
+                    {
+                        ReplayDiagnostics.Write("Audio pipe disposal deferred without an EndWait completion signal");
+                        return;
+                    }
+                    CancelPendingPipeConnectionUnsafe();
+                }
+                else
+                {
+                    _pipeDisposed = true;
+                    disposeNow = true;
+                }
+            }
+
+            if (completion != null)
+            {
+                QueuePipeDisposal(completion);
                 return;
             }
-            if (Interlocked.CompareExchange(ref _pipeEndWaitPending, 0, 0) != 0)
+
+            if (disposeNow)
             {
-                CancelPendingPipeConnection();
-                QueuePipeDisposal();
-                return;
+                DisposePipeHandle();
             }
-            try { _pipe.Dispose(); } catch { }
         }
 
-        private void QueuePipeDisposal()
+        private void QueuePipeDisposal(PipeWaitCompletion completion)
         {
-            if (Interlocked.CompareExchange(ref _pipeDisposeQueued, 1, 0) != 0)
+            if (completion == null || Interlocked.CompareExchange(ref _pipeDisposeQueued, 1, 0) != 0)
             {
                 return;
             }
+
             try
             {
-                if (!ThreadPool.QueueUserWorkItem(delegate { try { _pipe.Dispose(); } catch { } }))
-                {
-                    Interlocked.Exchange(ref _pipeDisposeQueued, 0);
-                    ReplayDiagnostics.Write("Could not queue audio pipe cleanup");
-                }
+                completion.RunAfterCompletion(DisposePipeAfterEndWait);
             }
             catch (Exception exception)
             {
                 Interlocked.Exchange(ref _pipeDisposeQueued, 0);
-                ReplayDiagnostics.Write("Could not queue audio pipe cleanup: " + exception.Message);
+                ReplayDiagnostics.Write("Could not defer audio pipe cleanup: " + exception.Message);
             }
+        }
+
+        private void DisposePipeAfterEndWait()
+        {
+            bool disposeNow = false;
+            lock (_pipeSyncRoot)
+            {
+                if (!_pipeDisposed && _pipeEndWaitPending == 0)
+                {
+                    _pipeDisposed = true;
+                    disposeNow = true;
+                }
+                else if (_pipeEndWaitPending != 0)
+                {
+                    ReplayDiagnostics.Write("Audio pipe cleanup callback ran before EndWait settled; keeping the pipe open");
+                    Interlocked.Exchange(ref _pipeDisposeQueued, 0);
+                }
+            }
+
+            if (disposeNow)
+            {
+                DisposePipeHandle();
+            }
+        }
+
+        private void DisposePipeHandle()
+        {
+            try { _pipe.Dispose(); }
+            catch (Exception exception) { ReplayDiagnostics.Write("Audio pipe disposal failed: " + exception.Message); }
+        }
+
+        private void CompletePendingPipeWait(PipeWaitCompletion completion, Exception failure)
+        {
+            lock (_pipeSyncRoot)
+            {
+                if (ReferenceEquals(_activePipeWaitCompletion, completion))
+                {
+                    _pipeEndWaitPending = 0;
+                    _activePipeWaitCompletion = null;
+                    Monitor.PulseAll(_pipeSyncRoot);
+                }
+            }
+
+            completion.Complete(failure);
+        }
+
+        private void TryDisposeSessionEventsUnsafe()
+        {
+            if (!_disposed || !_workerStopped || _activeConnectCalls != 0 || _sessionEventsDisposed)
+            {
+                return;
+            }
+
+            _sessionEventsDisposed = true;
+            _stopEvent.Dispose();
+            _startEvent.Dispose();
+            _preparedEvent.Dispose();
+            _captureStartedEvent.Dispose();
         }
 
         public void Dispose()
@@ -391,12 +606,9 @@ namespace BoltSnip
 
             Stop();
             DisposePipeSafely();
-            if (!_worker.IsAlive)
+            lock (_syncRoot)
             {
-                _stopEvent.Dispose();
-                _startEvent.Dispose();
-                _preparedEvent.Dispose();
-                _captureStartedEvent.Dispose();
+                TryDisposeSessionEventsUnsafe();
             }
         }
 
@@ -567,6 +779,11 @@ namespace BoltSnip
                     WasapiInterop.CoUninitialize();
                 }
                 ReplayDiagnostics.Write("Audio resources released");
+                lock (_syncRoot)
+                {
+                    _workerStopped = true;
+                    TryDisposeSessionEventsUnsafe();
+                }
             }
         }
 

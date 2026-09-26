@@ -8,13 +8,29 @@ namespace BoltSnip
         DdaGrab
     }
 
-    internal static class ReplayCaptureBackendSelection
+    internal static class ReplayCaptureBackendPolicy
     {
         internal const string EnvironmentVariable = "BOLTSNIP_REPLAY_CAPTURE_BACKEND";
 
         internal static ReplayCaptureBackend FromEnvironment(string value)
         {
-            return string.Equals(value, "ddagrab", StringComparison.OrdinalIgnoreCase)
+            return CandidateForScreenCount(value, 0) == ReplayCaptureBackend.DdaGrab
+                ? ReplayCaptureBackend.DdaGrab
+                : ReplayCaptureBackend.GdiGrab;
+        }
+
+        internal static ReplayCaptureBackend CandidateForScreenCount(string value, int activeScreenCount)
+        {
+            if (string.Equals(value, "gdigrab", StringComparison.OrdinalIgnoreCase))
+            {
+                return ReplayCaptureBackend.GdiGrab;
+            }
+            if (string.Equals(value, "ddagrab", StringComparison.OrdinalIgnoreCase))
+            {
+                return ReplayCaptureBackend.DdaGrab;
+            }
+
+            return activeScreenCount == 1
                 ? ReplayCaptureBackend.DdaGrab
                 : ReplayCaptureBackend.GdiGrab;
         }
@@ -48,8 +64,8 @@ namespace BoltSnip
                 60,
                 2,
                 true,
-                ReplayCaptureBackendSelection.FromEnvironment(
-                    Environment.GetEnvironmentVariable(ReplayCaptureBackendSelection.EnvironmentVariable)))
+                ReplayCaptureBackendPolicy.FromEnvironment(
+                    Environment.GetEnvironmentVariable(ReplayCaptureBackendPolicy.EnvironmentVariable)))
         {
         }
 

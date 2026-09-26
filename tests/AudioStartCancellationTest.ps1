@@ -77,6 +77,7 @@ public sealed class StartupSignalRunner
 '@, [Text.UTF8Encoding]::new($false))
 
 try {
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $resultPath)) | Out-Null
     $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
     if (-not [IO.File]::Exists($compiler)) { $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
     & $compiler /nologo /target:library ("/out:" + $assemblyPath) $sourcePath
