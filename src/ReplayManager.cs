@@ -294,7 +294,7 @@ namespace BoltSnip
         private void RecordLoop()
         {
             ReplayEncoder encoder = new ReplayEncoder();
-            ReplayCaptureSession captureSession = new ReplayCaptureSession();
+            ReplayCaptureSession captureSession = new ReplayCaptureSession(_settings.capture_backend);
             ReplayAudioCaptureSession audioSession = null;
             ReplayBuffer buffer = null;
             bool failed = false;
@@ -337,46 +337,106 @@ namespace BoltSnip
                     }
                 }
 
+                Action startWithCaptureBackendFallback = delegate
+                {
+                    ReplayCaptureBackend requestedBackend = captureSession.Backend;
+                    Exception backendFailure;
+                    TryStartWithCaptureBackendFallback(
+                        requestedBackend,
+                        delegate
+                        {
+                            encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
+                            if (audioSession != null)
+                            {
+                                audioSession.ConnectAndStart(5000);
+                            }
+                            StabilizeEncoderStartup(encoder);
+                        },
+                        delegate { return encoder.HasExited; },
+                        IsStopRequested,
+                        delegate
+                        {
+                            if (IsStopRequested())
+                            {
+                                throw new OperationCanceledException("Replay startup was stopped.");
+                            }
+
+                            string backendError = encoder.RecentError;
+                            if (!string.IsNullOrWhiteSpace(backendError))
+                            {
+                                ReplayDiagnostics.Write(
+                                    "DdaGrab FFmpeg startup error: " + backendError.Replace('\r', ' ').Replace('\n', ' '));
+                            }
+                            if (audioSession != null)
+                            {
+                                audioSession.Stop();
+                                audioSession.Dispose();
+                                audioSession = new ReplayAudioCaptureSession();
+                                audioSession.WaitUntilPrepared(5000);
+                            }
+
+                            encoder.Dispose();
+                            buffer.Dispose();
+                            buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                            encoder = new ReplayEncoder();
+                            captureSession.UseBackend(ReplayCaptureBackend.GdiGrab);
+                            lock (_syncRoot)
+                            {
+                                _encoder = encoder;
+                                _buffer = buffer;
+                                if (_disposed || _stopRequested)
+                                {
+                                    throw new OperationCanceledException("Replay startup was stopped.");
+                                }
+                            }
+
+                            encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
+                            if (audioSession != null)
+                            {
+                                audioSession.ConnectAndStart(5000);
+                            }
+                            StabilizeEncoderStartup(encoder);
+                        },
+                        out backendFailure);
+                };
+
                 if (audioSession == null)
                 {
-                    encoder.Start(cacheDirectory, _settings, captureSession, null);
-                    StabilizeEncoderStartup(encoder);
+                    startWithCaptureBackendFallback();
                 }
                 else
                 {
                     Exception audioStartFailure;
-                    bool audioStarted = TryStartWithAudioAndFallback(delegate
-                    {
-                        encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
-                        audioSession.ConnectAndStart(5000);
-                        StabilizeEncoderStartup(encoder);
-                    }, IsStopRequested, delegate
-                    {
-                        if (IsStopRequested())
+                    bool audioStarted = TryStartWithAudioAndFallback(
+                        startWithCaptureBackendFallback,
+                        IsStopRequested,
+                        delegate
                         {
-                            throw new OperationCanceledException("Audio startup was stopped.");
-                        }
-
-                        ReplayDiagnostics.Write("Audio startup failed; retrying with video-only capture");
-                        SetAudioState(ReplayAudioState.Unavailable);
-                        audioSession.Dispose();
-                        audioSession = null;
-                        encoder.Dispose();
-                        buffer.Dispose();
-                        buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
-                        encoder = new ReplayEncoder();
-                        lock (_syncRoot)
-                        {
-                            _encoder = encoder;
-                            _buffer = buffer;
-                            if (_disposed || _stopRequested)
+                            if (IsStopRequested())
                             {
-                                throw new OperationCanceledException("Replay startup was stopped.");
+                                throw new OperationCanceledException("Audio startup was stopped.");
                             }
-                        }
-                        encoder.Start(cacheDirectory, _settings, captureSession, null);
-                        StabilizeEncoderStartup(encoder);
-                    }, out audioStartFailure);
+
+                            ReplayDiagnostics.Write("Audio startup failed; retrying with video-only capture");
+                            SetAudioState(ReplayAudioState.Unavailable);
+                            audioSession.Dispose();
+                            audioSession = null;
+                            encoder.Dispose();
+                            buffer.Dispose();
+                            buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                            encoder = new ReplayEncoder();
+                            lock (_syncRoot)
+                            {
+                                _encoder = encoder;
+                                _buffer = buffer;
+                                if (_disposed || _stopRequested)
+                                {
+                                    throw new OperationCanceledException("Replay startup was stopped.");
+                                }
+                            }
+                            startWithCaptureBackendFallback();
+                        },
+                        out audioStartFailure);
 
                     if (audioStarted)
                     {
@@ -615,6 +675,62 @@ namespace BoltSnip
             {
                 failure = exception;
                 return false;
+            }
+        }
+
+        internal static ReplayCaptureBackend TryStartWithCaptureBackendFallback(
+            ReplayCaptureBackend requestedBackend,
+            Action startRequestedBackend,
+            Func<bool> isRequestedBackendUnavailable,
+            Func<bool> isStopRequested,
+            Action cleanAndStartGdiGrab,
+            out Exception backendFailure)
+        {
+            if (startRequestedBackend == null)
+            {
+                throw new ArgumentNullException("startRequestedBackend");
+            }
+            if (isRequestedBackendUnavailable == null)
+            {
+                throw new ArgumentNullException("isRequestedBackendUnavailable");
+            }
+            if (isStopRequested == null)
+            {
+                throw new ArgumentNullException("isStopRequested");
+            }
+            if (cleanAndStartGdiGrab == null)
+            {
+                throw new ArgumentNullException("cleanAndStartGdiGrab");
+            }
+
+            if (requestedBackend != ReplayCaptureBackend.DdaGrab)
+            {
+                startRequestedBackend();
+                backendFailure = null;
+                return ReplayCaptureBackend.GdiGrab;
+            }
+
+            try
+            {
+                startRequestedBackend();
+                backendFailure = null;
+                return ReplayCaptureBackend.DdaGrab;
+            }
+            catch (Exception exception)
+            {
+                if (isStopRequested())
+                {
+                    throw new OperationCanceledException("Replay startup was stopped.", exception);
+                }
+                if (!isRequestedBackendUnavailable())
+                {
+                    throw;
+                }
+
+                backendFailure = exception;
+                ReplayDiagnostics.Write("DdaGrab startup failed; retrying with GdiGrab: " + exception.Message);
+                cleanAndStartGdiGrab();
+                return ReplayCaptureBackend.GdiGrab;
             }
         }
 

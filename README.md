@@ -64,6 +64,8 @@ BoltSnip 安装到当前用户的 `%LOCALAPPDATA%\Programs\BoltSnip`，无需管
 
 此实验版需要 Windows 版 FFmpeg，且该构建必须包含 `h264_nvenc` 和 AAC 编码器。可将 `ffmpeg.exe` 放到 BoltSnip 安装目录、加入 `PATH`，或设置 `BOLTSNIP_FFMPEG_PATH` 指向该文件。BoltSnip 不会自动下载或捆绑 FFmpeg；检测不到 NVENC 时会显示原因，不会切换到软件编码。即时回放默认通过 Windows WASAPI Loopback 缓存默认输出设备的系统声音，并在保存的 MP4 中包含 AAC 音轨；麦克风和单应用音频捕获不受支持。若系统音频设备或格式不可用，即时回放会继续录制无音频的视频。
 
+Capture V2 的 Desktop Duplication 后端目前仅供实验：默认仍使用 `gdigrab`。设置进程环境变量 `BOLTSNIP_REPLAY_CAPTURE_BACKEND=ddagrab` 可尝试 FFmpeg `ddagrab`，它捕获主显示器并输出 D3D11 hardware frames；如果该后端启动失败，BoltSnip 会记录原因并回退到 `gdigrab`。清除该环境变量即可恢复默认选择。该实验不改变 WASAPI、AAC、NVENC 编码和 2 秒分段设置。
+
 即时回放的启停、错误、缓存淘汰和保存结果会自动写入现有诊断日志。默认日志位置为 `%LOCALAPPDATA%\BoltSnip\diagnostic.log`；可通过 `BOLTSNIP_DIAGNOSTIC_LOG_PATH` 指定日志文件。截图细节诊断仍需设置 `BOLTSNIP_DIAGNOSTIC_LOG=1` 后启动 BoltSnip。
 
 ## 开机启动

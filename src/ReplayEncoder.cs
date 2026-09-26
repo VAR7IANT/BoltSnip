@@ -131,7 +131,9 @@ namespace BoltSnip
             }
 
             ReplayDiagnostics.Write(
-                "Encoder started: NVENC H.264; resolution=" + captureSession.Bounds.Width + "x" + captureSession.Bounds.Height +
+                "Encoder started: NVENC H.264; backend=" + captureSession.Backend +
+                (captureSession.Backend == ReplayCaptureBackend.DdaGrab ? "; input frames=D3D11" : string.Empty) +
+                "; resolution=" + captureSession.Bounds.Width + "x" + captureSession.Bounds.Height +
                 "; fps=" + settings.target_fps.ToString(CultureInfo.InvariantCulture));
             if (audioSession != null)
             {

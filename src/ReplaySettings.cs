@@ -2,12 +2,31 @@ using System;
 
 namespace BoltSnip
 {
+    internal enum ReplayCaptureBackend
+    {
+        GdiGrab,
+        DdaGrab
+    }
+
+    internal static class ReplayCaptureBackendSelection
+    {
+        internal const string EnvironmentVariable = "BOLTSNIP_REPLAY_CAPTURE_BACKEND";
+
+        internal static ReplayCaptureBackend FromEnvironment(string value)
+        {
+            return string.Equals(value, "ddagrab", StringComparison.OrdinalIgnoreCase)
+                ? ReplayCaptureBackend.DdaGrab
+                : ReplayCaptureBackend.GdiGrab;
+        }
+    }
+
     internal sealed class ReplaySettings
     {
         internal readonly TimeSpan buffer_duration;
         internal readonly int target_fps;
         internal readonly int segment_duration_seconds;
         internal readonly bool capture_system_audio;
+        internal readonly ReplayCaptureBackend capture_backend;
 
         internal int segment_list_size
         {
@@ -24,16 +43,32 @@ namespace BoltSnip
         }
 
         internal ReplaySettings()
-            : this(TimeSpan.FromSeconds(300), 60, 2, true)
+            : this(
+                TimeSpan.FromSeconds(300),
+                60,
+                2,
+                true,
+                ReplayCaptureBackendSelection.FromEnvironment(
+                    Environment.GetEnvironmentVariable(ReplayCaptureBackendSelection.EnvironmentVariable)))
         {
         }
 
         internal ReplaySettings(TimeSpan bufferDuration, int targetFps, int segmentDurationSeconds)
-            : this(bufferDuration, targetFps, segmentDurationSeconds, true)
+            : this(bufferDuration, targetFps, segmentDurationSeconds, true, ReplayCaptureBackend.GdiGrab)
         {
         }
 
         internal ReplaySettings(TimeSpan bufferDuration, int targetFps, int segmentDurationSeconds, bool captureSystemAudio)
+            : this(bufferDuration, targetFps, segmentDurationSeconds, captureSystemAudio, ReplayCaptureBackend.GdiGrab)
+        {
+        }
+
+        internal ReplaySettings(
+            TimeSpan bufferDuration,
+            int targetFps,
+            int segmentDurationSeconds,
+            bool captureSystemAudio,
+            ReplayCaptureBackend captureBackend)
         {
             if (bufferDuration <= TimeSpan.Zero)
             {
@@ -52,6 +87,7 @@ namespace BoltSnip
             target_fps = targetFps;
             segment_duration_seconds = segmentDurationSeconds;
             capture_system_audio = captureSystemAudio;
+            capture_backend = captureBackend;
         }
     }
 
