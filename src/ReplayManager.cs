@@ -126,6 +126,7 @@ namespace BoltSnip
             }
 
             ReplayDiagnostics.Write("Starting capture");
+            ReplayDiagnostics.Write("Requested/default backend: " + _settings.capture_backend);
         }
 
         internal void Stop()

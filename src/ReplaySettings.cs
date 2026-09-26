@@ -14,9 +14,33 @@ namespace BoltSnip
 
         internal static ReplayCaptureBackend FromEnvironment(string value)
         {
-            return CandidateForScreenCount(value, 0) == ReplayCaptureBackend.DdaGrab
-                ? ReplayCaptureBackend.DdaGrab
-                : ReplayCaptureBackend.GdiGrab;
+            return FromEnvironment(value, delegate
+            {
+                return System.Windows.Forms.Screen.AllScreens.Length;
+            });
+        }
+
+        internal static ReplayCaptureBackend FromEnvironment(string value, Func<int> getActiveScreenCount)
+        {
+            if (string.Equals(value, "gdigrab", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "ddagrab", StringComparison.OrdinalIgnoreCase))
+            {
+                return CandidateForScreenCount(value, 0);
+            }
+
+            if (getActiveScreenCount == null)
+            {
+                return ReplayCaptureBackend.GdiGrab;
+            }
+
+            try
+            {
+                return CandidateForScreenCount(value, getActiveScreenCount());
+            }
+            catch
+            {
+                return ReplayCaptureBackend.GdiGrab;
+            }
         }
 
         internal static ReplayCaptureBackend CandidateForScreenCount(string value, int activeScreenCount)
