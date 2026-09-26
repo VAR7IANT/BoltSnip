@@ -298,6 +298,7 @@ namespace BoltSnip
             ReplayAudioCaptureSession audioSession = null;
             ReplayBuffer buffer = null;
             bool failed = false;
+            bool runtimeFallbackUsed = false;
             string failureMessage = null;
 
             try
@@ -462,6 +463,7 @@ namespace BoltSnip
 
                 ReplayDiagnostics.Write("Capture started; buffer initialized");
                 DateTime lastSegmentReceivedUtc = DateTime.UtcNow;
+                DateTime? ddaDisplayChangeObservedUtc = null;
                 while (!IsStopRequested())
                 {
                     IList<ReplaySegment> completed = encoder.ReadCompletedSegments(_settings.segment_duration_seconds);
@@ -478,8 +480,178 @@ namespace BoltSnip
                         }
                     }
 
-                    if (encoder.HasExited)
+                    bool encoderExitedUnexpectedly = encoder.HasExited;
+                    string currentEncoderError = encoder.RecentError;
+                    bool ddaAccessLostAfterDisplayChange =
+                        !encoderExitedUnexpectedly &&
+                        captureSession.Backend == ReplayCaptureBackend.DdaGrab &&
+                        captureSession.HasDisplayChanged() &&
+                        ClassifyDdaRuntimeFailure(currentEncoderError) == "DXGI_ERROR_ACCESS_LOST";
+                    if (encoderExitedUnexpectedly || ddaAccessLostAfterDisplayChange)
                     {
+                        bool runtimeRecovered = TryRunDdaRuntimeFallback(
+                            captureSession.Backend,
+                            true,
+                            IsStopRequested(),
+                            runtimeFallbackUsed,
+                            delegate
+                            {
+                                string failedEncoderError = encoder.RecentError;
+                                ReplayDiagnostics.Write(
+                                    "DdaGrab runtime capture failure; process-exited=" + encoderExitedUnexpectedly +
+                                    "; classification=" +
+                                    ClassifyDdaRuntimeFailure(failedEncoderError) +
+                                    "; full FFmpeg error follows:" + Environment.NewLine +
+                                    (string.IsNullOrWhiteSpace(failedEncoderError)
+                                        ? "(FFmpeg produced no stderr output)"
+                                        : failedEncoderError));
+
+                                lock (_syncRoot)
+                                {
+                                    if (_disposed || _stopRequested)
+                                    {
+                                        throw new OperationCanceledException("Replay recovery was stopped.");
+                                    }
+                                    _state = ReplayState.Starting;
+                                    _audioState = _settings.capture_system_audio
+                                        ? ReplayAudioState.Starting
+                                        : ReplayAudioState.Disabled;
+                                }
+
+                                if (audioSession != null)
+                                {
+                                    audioSession.Stop();
+                                    audioSession.Dispose();
+                                    audioSession = null;
+                                }
+
+                                encoder.Dispose();
+                                buffer.Dispose();
+
+                                cacheDirectory = CreateCacheDirectory();
+                                buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                                encoder = new ReplayEncoder();
+                                captureSession.UseBackend(ReplayCaptureBackend.GdiGrab);
+
+                                lock (_syncRoot)
+                                {
+                                    if (_disposed || _stopRequested)
+                                    {
+                                        throw new OperationCanceledException("Replay recovery was stopped.");
+                                    }
+                                    _encoder = encoder;
+                                    _buffer = buffer;
+                                }
+
+                                if (_settings.capture_system_audio)
+                                {
+                                    try
+                                    {
+                                        audioSession = new ReplayAudioCaptureSession();
+                                        audioSession.WaitUntilPrepared(5000);
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        throw;
+                                    }
+                                    catch (Exception exception)
+                                    {
+                                        ReplayDiagnostics.Write(
+                                            "WASAPI restart failed during DdaGrab recovery: " + exception.Message);
+                                        SetAudioState(ReplayAudioState.Unavailable);
+                                        if (audioSession != null)
+                                        {
+                                            audioSession.Stop();
+                                            audioSession.Dispose();
+                                            audioSession = null;
+                                        }
+                                    }
+                                }
+
+                                if (audioSession == null)
+                                {
+                                    encoder.Start(cacheDirectory, _settings, captureSession, null);
+                                    StabilizeEncoderStartup(encoder);
+                                    if (_settings.capture_system_audio)
+                                    {
+                                        SetAudioState(ReplayAudioState.Unavailable);
+                                    }
+                                }
+                                else
+                                {
+                                    Exception audioStartFailure;
+                                    bool audioStarted = TryStartWithAudioAndFallback(
+                                        delegate
+                                        {
+                                            encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
+                                            audioSession.ConnectAndStart(5000);
+                                            StabilizeEncoderStartup(encoder);
+                                        },
+                                        IsStopRequested,
+                                        delegate
+                                        {
+                                            if (IsStopRequested())
+                                            {
+                                                throw new OperationCanceledException("Replay recovery was stopped.");
+                                            }
+                                            ReplayDiagnostics.Write(
+                                                "WASAPI restart failed; continuing recovered GDI capture without audio");
+                                            audioSession.Stop();
+                                            audioSession.Dispose();
+                                            audioSession = null;
+                                            SetAudioState(ReplayAudioState.Unavailable);
+                                            encoder.Dispose();
+                                            buffer.Dispose();
+                                            buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                                            encoder = new ReplayEncoder();
+                                            lock (_syncRoot)
+                                            {
+                                                if (_disposed || _stopRequested)
+                                                {
+                                                    throw new OperationCanceledException("Replay recovery was stopped.");
+                                                }
+                                                _encoder = encoder;
+                                                _buffer = buffer;
+                                            }
+                                            encoder.Start(cacheDirectory, _settings, captureSession, null);
+                                            StabilizeEncoderStartup(encoder);
+                                        },
+                                        out audioStartFailure);
+
+                                    if (audioStarted)
+                                    {
+                                        SetAudioState(ReplayAudioState.Active);
+                                    }
+                                    else
+                                    {
+                                        ReplayDiagnostics.Write(
+                                            "WASAPI unavailable after DdaGrab recovery: " + audioStartFailure.Message);
+                                    }
+                                }
+
+                                lock (_syncRoot)
+                                {
+                                    if (_disposed || _stopRequested)
+                                    {
+                                        throw new OperationCanceledException("Replay recovery was stopped.");
+                                    }
+                                    _state = ReplayState.Recording;
+                                    _lastError = null;
+                                    EnqueueNotification(
+                                        "即时回放捕获已自动恢复",
+                                        "即时回放捕获已自动恢复，最近录像缓存已重新开始。",
+                                        false);
+                                }
+
+                                ReplayDiagnostics.Write(
+                                    "DdaGrab runtime recovery completed; backend=GdiGrab; replay ring reset");
+                            });
+                        if (runtimeRecovered)
+                        {
+                            runtimeFallbackUsed = true;
+                            lastSegmentReceivedUtc = DateTime.UtcNow;
+                            continue;
+                        }
                         throw BuildEncoderFailure(encoder, "即时回放捕获进程意外退出");
                     }
                     if (audioSession != null)
@@ -488,8 +660,23 @@ namespace BoltSnip
                     }
                     if (captureSession.HasDisplayChanged())
                     {
+                        if (captureSession.Backend == ReplayCaptureBackend.DdaGrab)
+                        {
+                            if (!ddaDisplayChangeObservedUtc.HasValue)
+                            {
+                                ddaDisplayChangeObservedUtc = DateTime.UtcNow;
+                                ReplayDiagnostics.Write(
+                                    "Display change detected during DdaGrab; waiting briefly for DXGI encoder exit before graceful failure");
+                            }
+                            if (DateTime.UtcNow - ddaDisplayChangeObservedUtc.Value < TimeSpan.FromSeconds(4))
+                            {
+                                Thread.Sleep(100);
+                                continue;
+                            }
+                        }
                         throw new InvalidOperationException("主显示器分辨率或连接状态已改变，请关闭后重新开启即时回放。");
                     }
+                    ddaDisplayChangeObservedUtc = null;
                     if (DateTime.UtcNow - lastSegmentReceivedUtc > TimeSpan.FromSeconds(15))
                     {
                         throw new InvalidOperationException("超过 15 秒没有生成新录像片段，已停止即时回放以保护临时磁盘空间。");
@@ -789,6 +976,42 @@ namespace BoltSnip
             stopEncoder();
             joinAfterStop();
             logForcedShutdown();
+        }
+
+        internal static bool TryRunDdaRuntimeFallback(
+            ReplayCaptureBackend currentBackend,
+            bool encoderExitedUnexpectedly,
+            bool stopRequested,
+            bool fallbackAlreadyUsed,
+            Action recoverWithGdi)
+        {
+            if (currentBackend != ReplayCaptureBackend.DdaGrab ||
+                !encoderExitedUnexpectedly ||
+                stopRequested ||
+                fallbackAlreadyUsed)
+            {
+                return false;
+            }
+            if (recoverWithGdi == null)
+            {
+                throw new ArgumentNullException("recoverWithGdi");
+            }
+
+            recoverWithGdi();
+            return true;
+        }
+
+        internal static string ClassifyDdaRuntimeFailure(string error)
+        {
+            string value = error ?? string.Empty;
+            if (value.IndexOf("AcquireNextFrame failed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                value.IndexOf("887a0026", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                value.IndexOf("DXGI_ERROR_ACCESS_LOST", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "DXGI_ERROR_ACCESS_LOST";
+            }
+
+            return "unclassified DDA runtime failure";
         }
 
         private void StabilizeEncoderStartup(ReplayEncoder encoder)

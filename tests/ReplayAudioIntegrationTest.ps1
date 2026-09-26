@@ -30,6 +30,7 @@ $previousReplayOutputDirectory = [Environment]::GetEnvironmentVariable('BOLTSNIP
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Path (Join-Path $PSScriptRoot 'ReplayAudioSyncWave.cs')
+. (Join-Path $PSScriptRoot 'ReplayAudioSyncPairing.ps1')
 $nvidiaSmi = Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue
 
 function Invoke-CapturedProcess([string]$Path, [string]$Arguments, [switch]$ReadOutput) {
@@ -96,7 +97,7 @@ function Save-Replay([int]$SaveOrdinal) {
 }
 
 function Get-Probe([string]$Path) {
-    $arguments = '-v error -show_entries stream=index,codec_type,codec_name,sample_rate,channels,duration:format=duration -of json "' + $Path + '"'
+    $arguments = '-v error -show_entries stream=index,codec_type,codec_name,width,height,sample_rate,channels,duration:format=duration -of json "' + $Path + '"'
     $result = Invoke-CapturedProcess $Ffprobe $arguments -ReadOutput
     if ($result.ExitCode -ne 0) { throw "ffprobe failed for $Path : $($result.Error)" }
     return ($result.Output | ConvertFrom-Json)
@@ -139,9 +140,23 @@ function Get-AudioToneOnsets([string]$Path) {
     return $analyzerType.GetMethod('FindToneOnsets').Invoke($null, $invokeArguments)
 }
 
-function Get-VisualOnsets([string]$Path) {
+function Get-VisualOnsets([string]$Path, [int]$FrameWidth, [int]$FrameHeight) {
     $rawPath = Join-Path $runDirectory 'visual-signal.rgb'
-    $filter = 'crop=' + $playerWidth + ':' + $playerHeight + ':' + $playerLeft + ':' + $playerTop + ',scale=64:40:flags=area,format=rgb24'
+    $scaleX = [double]$FrameWidth / [double]$screen.Bounds.Width
+    $scaleY = [double]$FrameHeight / [double]$screen.Bounds.Height
+    $cropLeft = [int][Math]::Round($playerLeft * $scaleX)
+    $cropTop = [int][Math]::Round($playerTop * $scaleY)
+    $cropWidth = [Math]::Min($FrameWidth - $cropLeft, [int][Math]::Round($playerWidth * $scaleX))
+    $cropHeight = [Math]::Min($FrameHeight - $cropTop, [int][Math]::Round($playerHeight * $scaleY))
+    if ($cropWidth -le 0 -or $cropHeight -le 0) { throw 'The DPI-scaled visual marker crop is outside the encoded frame.' }
+    $script:visualCaptureRoi = [pscustomobject]@{
+        EncodedFrame = '{0}x{1}' -f $FrameWidth, $FrameHeight
+        ScreenBoundsSeenByHarness = $screen.Bounds.ToString()
+        ScaleX = [Math]::Round($scaleX, 5)
+        ScaleY = [Math]::Round($scaleY, 5)
+        CropPixels = '{0},{1},{2},{3}' -f $cropLeft, $cropTop, $cropWidth, $cropHeight
+    }
+    $filter = 'crop=' + $cropWidth + ':' + $cropHeight + ':' + $cropLeft + ':' + $cropTop + ',scale=64:40:flags=area,format=rgb24'
     $arguments = '-hide_banner -loglevel error -i "' + $Path + '" -vf "' + $filter + '" -fps_mode passthrough -pix_fmt rgb24 -f rawvideo "' + $rawPath + '"'
     $result = Invoke-CapturedProcess $Ffmpeg $arguments
     if ($result.ExitCode -ne 0) { throw "Visual signal extraction failed: $($result.Error)" }
@@ -164,42 +179,6 @@ function Get-VisualOnsets([string]$Path) {
     }
     Remove-Item -LiteralPath $rawPath -Force
     return $events
-}
-
-function Get-SyncMeasurements([double[]]$Visual, [double[]]$Audio) {
-    $pairs = @()
-    foreach ($visualTime in $Visual) {
-        $nearest = $null
-        $nearestDistance = [double]::MaxValue
-        foreach ($audioTime in $Audio) {
-            $distance = [Math]::Abs($visualTime - $audioTime)
-            if ($distance -lt $nearestDistance) { $nearestDistance = $distance; $nearest = $audioTime }
-        }
-        if ($null -ne $nearest -and $nearestDistance -lt 0.5) {
-            $pairs += [pscustomobject]@{ Visual = $visualTime; Audio = $nearest; OffsetMs = ($visualTime - $nearest) * 1000 }
-        }
-    }
-    if ($pairs.Count -lt 3) {
-        return [pscustomobject]@{ Method = 'Subjective playback sync only'; StartOffsetMs = $null; MiddleOffsetMs = $null; EndOffsetMs = $null; MaxOffsetMs = $null; PairedEvents = $pairs.Count; EventMeasurements = @() }
-    }
-    $middleIndex = [int][Math]::Floor(($pairs.Count - 1) / 2)
-    $maxOffset = ($pairs | ForEach-Object { [Math]::Abs($_.OffsetMs) } | Measure-Object -Maximum).Maximum
-    $eventMeasurements = @($pairs | ForEach-Object {
-        [pscustomobject]@{
-            VisualSeconds = [Math]::Round($_.Visual, 3)
-            AudioSeconds = [Math]::Round($_.Audio, 3)
-            OffsetMs = [Math]::Round($_.OffsetMs, 1)
-        }
-    })
-    [pscustomobject]@{
-        Method = 'Repeated flash/beep onset comparison'
-        StartOffsetMs = [Math]::Round($pairs[0].OffsetMs, 1)
-        MiddleOffsetMs = [Math]::Round($pairs[$middleIndex].OffsetMs, 1)
-        EndOffsetMs = [Math]::Round($pairs[-1].OffsetMs, 1)
-        MaxOffsetMs = [Math]::Round($maxOffset, 1)
-        PairedEvents = $pairs.Count
-        EventMeasurements = $eventMeasurements
-    }
 }
 
 $manager = $null
@@ -399,7 +378,7 @@ try {
     $audioEvents = if ($null -ne $replays[-1].AudioToneOnsetSeconds) { @($replays[-1].AudioToneOnsetSeconds) } else { @() }
     if ($Mode -ne 'Silence') {
         $target = $replays[-1].Path
-        $visualEvents = Get-VisualOnsets $target
+        $visualEvents = Get-VisualOnsets $target $video.width $video.height
         $audioAnalysis = Get-SyncMeasurements $visualEvents $audioEvents
     }
 
@@ -453,6 +432,9 @@ try {
         CheckpointBSavedAtSeconds = $checkpointBSavedAt
         Replays = $replays
         AudioVideoSync = $audioAnalysis
+        VisualCaptureRoi = $script:visualCaptureRoi
+        VisualOnsetCount = $visualEvents.Count
+        VisualOnsetSeconds = $visualEvents
         AudioOnsetCount = $audioEvents.Count
         AudioOnsetSeconds = $audioEvents
         Performance = $performance
