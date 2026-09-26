@@ -29,9 +29,10 @@ namespace BoltSnip
             }
 
             Stopwatch stopwatch = Stopwatch.StartNew();
-            string videosDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
-                "BoltSnip");
+            string outputDirectoryOverride = Environment.GetEnvironmentVariable("BOLTSNIP_REPLAY_OUTPUT_DIRECTORY");
+            string videosDirectory = string.IsNullOrWhiteSpace(outputDirectoryOverride)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "BoltSnip")
+                : Path.GetFullPath(outputDirectoryOverride);
             Directory.CreateDirectory(videosDirectory);
 
             DateTime timestamp = DateTime.Now;
@@ -47,6 +48,7 @@ namespace BoltSnip
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = ffmpegPath;
                 startInfo.Arguments = BuildArguments(manifestPath, temporaryOutputPath);
+                ReplayDiagnostics.Write("FFmpeg replay save command: " + startInfo.Arguments);
                 startInfo.UseShellExecute = false;
                 startInfo.CreateNoWindow = true;
                 startInfo.RedirectStandardError = true;
@@ -185,11 +187,11 @@ namespace BoltSnip
             return candidate;
         }
 
-        private static string BuildArguments(string manifestPath, string outputPath)
+        internal static string BuildArguments(string manifestPath, string outputPath)
         {
             return "-hide_banner -loglevel error -nostats -y -f concat -safe 0 -i " +
                 ReplayProcessSupport.QuoteArgument(manifestPath) +
-                " -map 0:v:0 -c:v copy -movflags +faststart -f mp4 " +
+                " -map 0:v:0 -map 0:a:0? -c:v copy -c:a copy -movflags +faststart -f mp4 " +
                 ReplayProcessSupport.QuoteArgument(outputPath);
         }
 

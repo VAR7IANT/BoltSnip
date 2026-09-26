@@ -48,7 +48,11 @@ namespace BoltSnip
             }
         }
 
-        internal void Start(string cacheDirectory, ReplaySettings settings, ReplayCaptureSession captureSession)
+        internal void Start(
+            string cacheDirectory,
+            ReplaySettings settings,
+            ReplayCaptureSession captureSession,
+            ReplayAudioCaptureSession audioSession)
         {
             if (settings == null)
             {
@@ -74,13 +78,23 @@ namespace BoltSnip
             string ffmpegPath = ReplayProcessSupport.FindFfmpeg();
             ReplayProcessSupport.EnsureNvencAvailable(ffmpegPath);
 
-            string inputArguments = captureSession.BuildInputArguments(settings);
+            string videoInputArguments = captureSession.BuildInputArguments(settings);
+            string audioInputArguments = audioSession == null
+                ? null
+                : ReplayAudioCaptureSession.BuildInputArguments(audioSession.Format, audioSession.PipeArgument);
             Directory.CreateDirectory(cacheDirectory);
             string listPath = Path.Combine(cacheDirectory, "segments.csv");
             string outputPattern = Path.Combine(cacheDirectory, "segment_%08d.mp4");
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.FileName = ffmpegPath;
-            startInfo.Arguments = BuildArguments(listPath, outputPattern, inputArguments, settings);
+            startInfo.Arguments = BuildArguments(
+                listPath,
+                outputPattern,
+                videoInputArguments,
+                audioInputArguments,
+                audioSession == null ? null : audioSession.Format,
+                settings);
+            ReplayDiagnostics.Write("FFmpeg encoder command: " + startInfo.Arguments);
             startInfo.UseShellExecute = false;
             startInfo.CreateNoWindow = true;
             startInfo.RedirectStandardError = true;
@@ -119,6 +133,10 @@ namespace BoltSnip
             ReplayDiagnostics.Write(
                 "Encoder started: NVENC H.264; resolution=" + captureSession.Bounds.Width + "x" + captureSession.Bounds.Height +
                 "; fps=" + settings.target_fps.ToString(CultureInfo.InvariantCulture));
+            if (audioSession != null)
+            {
+                ReplayDiagnostics.Write("AAC output enabled");
+            }
         }
 
         internal IList<ReplaySegment> ReadCompletedSegments(int defaultSegmentSeconds)
@@ -236,17 +254,33 @@ namespace BoltSnip
             Stop();
         }
 
-        private string BuildArguments(
+        internal static string BuildArguments(
             string listPath,
             string outputPattern,
-            string inputArguments,
+            string videoInputArguments,
+            string audioInputArguments,
+            ReplayAudioFormat audioFormat,
             ReplaySettings settings)
         {
             int gop = settings.target_fps * settings.segment_duration_seconds;
             StringBuilder arguments = new StringBuilder();
             arguments.Append("-hide_banner -loglevel warning -nostats -y ");
-            arguments.Append(inputArguments);
-            arguments.Append("-an -c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 ");
+            bool includeAudio = audioFormat != null && !string.IsNullOrWhiteSpace(audioInputArguments);
+            arguments.Append(videoInputArguments);
+            if (includeAudio)
+            {
+                arguments.Append(audioInputArguments);
+                arguments.Append("-map 0:v:0 -map 1:a:0 ");
+            }
+            else
+            {
+                arguments.Append("-an ");
+            }
+            arguments.Append("-c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 ");
+            if (includeAudio)
+            {
+                arguments.Append("-c:a aac -b:a 192k -ar 48000 -ac 2 ");
+            }
             arguments.Append("-g ").Append(gop).Append(" -forced-idr 1 ");
             arguments.Append("-force_key_frames ").Append(ReplayProcessSupport.QuoteArgument(
                 "expr:gte(t,n_forced*" + settings.segment_duration_seconds.ToString(CultureInfo.InvariantCulture) + ")")).Append(' ');

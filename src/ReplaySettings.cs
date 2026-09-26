@@ -7,6 +7,7 @@ namespace BoltSnip
         internal readonly TimeSpan buffer_duration;
         internal readonly int target_fps;
         internal readonly int segment_duration_seconds;
+        internal readonly bool capture_system_audio;
 
         internal int segment_list_size
         {
@@ -23,11 +24,16 @@ namespace BoltSnip
         }
 
         internal ReplaySettings()
-            : this(TimeSpan.FromSeconds(300), 60, 2)
+            : this(TimeSpan.FromSeconds(300), 60, 2, true)
         {
         }
 
         internal ReplaySettings(TimeSpan bufferDuration, int targetFps, int segmentDurationSeconds)
+            : this(bufferDuration, targetFps, segmentDurationSeconds, true)
+        {
+        }
+
+        internal ReplaySettings(TimeSpan bufferDuration, int targetFps, int segmentDurationSeconds, bool captureSystemAudio)
         {
             if (bufferDuration <= TimeSpan.Zero)
             {
@@ -45,6 +51,7 @@ namespace BoltSnip
             buffer_duration = bufferDuration;
             target_fps = targetFps;
             segment_duration_seconds = segmentDurationSeconds;
+            capture_system_audio = captureSystemAudio;
         }
     }
 

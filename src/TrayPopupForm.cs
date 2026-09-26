@@ -59,6 +59,7 @@ namespace BoltSnip
         private string _captureShortcut;
         private string _replayShortcut;
         private ReplayState _replayState;
+        private ReplayAudioState _replayAudioState;
         private bool _isSaving;
         private bool _startupEnabled;
         private bool _licenseEnabled;
@@ -90,6 +91,7 @@ namespace BoltSnip
             _captureShortcut = string.Empty;
             _replayShortcut = string.Empty;
             _replayState = ReplayState.Disabled;
+            _replayAudioState = ReplayAudioState.Disabled;
 
             _brandFont = new Font("Microsoft YaHei UI", 12f, FontStyle.Bold, GraphicsUnit.Point);
             _bodyFont = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
@@ -150,14 +152,23 @@ namespace BoltSnip
 
         internal void UpdateReplayState(ReplayState state, bool isSaving)
         {
+            UpdateReplayState(
+                state,
+                isSaving,
+                state == ReplayState.Recording ? ReplayAudioState.Active : ReplayAudioState.Disabled);
+        }
+
+        internal void UpdateReplayState(ReplayState state, bool isSaving, ReplayAudioState audioState)
+        {
             ExpireSavedFeedback();
-            if (_replayState == state && _isSaving == isSaving)
+            if (_replayState == state && _isSaving == isSaving && _replayAudioState == audioState)
             {
                 return;
             }
 
             _replayState = state;
             _isSaving = isSaving;
+            _replayAudioState = audioState;
             Invalidate(ScaleRectangle(GetLogicalBounds(TrayPopupAction.ReplayToggle, _licenseEnabled)));
         }
 
@@ -575,6 +586,14 @@ namespace BoltSnip
             }
             if (_replayState == ReplayState.Recording)
             {
+                if (_replayAudioState == ReplayAudioState.Active)
+                {
+                    return "正在缓存最近 5 分钟 · 系统声音";
+                }
+                if (_replayAudioState == ReplayAudioState.Unavailable)
+                {
+                    return "正在缓存最近 5 分钟 · 音频不可用";
+                }
                 return "正在缓存最近 5 分钟";
             }
             if (_replayState == ReplayState.Stopping)

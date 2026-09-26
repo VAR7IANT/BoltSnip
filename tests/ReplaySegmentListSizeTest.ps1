@@ -8,8 +8,7 @@ $flags = [Reflection.BindingFlags]'Instance,NonPublic'
 $settingsType = $assembly.GetType('BoltSnip.ReplaySettings', $true)
 $settingsConstructor = $settingsType.GetConstructor($flags, $null, [Type[]]@([TimeSpan],[int],[int]), $null)
 $encoderType = $assembly.GetType('BoltSnip.ReplayEncoder', $true)
-$encoder = [Activator]::CreateInstance($encoderType, $true)
-$buildArguments = $encoderType.GetMethod('BuildArguments', $flags)
+$buildArguments = $encoderType.GetMethod('BuildArguments', [Reflection.BindingFlags]'Static,NonPublic')
 $sizeProperty = $settingsType.GetProperty('segment_list_size', $flags)
 
 $cases = @(
@@ -21,8 +20,8 @@ $results = foreach ($case in $cases) {
     $settings = $settingsConstructor.Invoke([object[]]@(
         [TimeSpan]::FromSeconds($case.BufferSeconds), [int]60, [int]$case.SegmentSeconds))
     $size = [int]$sizeProperty.GetValue($settings, $null)
-    $arguments = $buildArguments.Invoke($encoder, [object[]]@(
-        'C:\cache\segments.csv', 'C:\cache\segment_%08d.mp4', '-f gdigrab ', $settings))
+    $arguments = $buildArguments.Invoke($null, [object[]]@(
+        'C:\cache\segments.csv', 'C:\cache\segment_%08d.mp4', '-f gdigrab ', $null, $null, $settings))
     $parameterMatches = [string]$arguments -match ('-segment_list_size\s+' + $case.Expected + '\s')
     [pscustomobject]@{
         BufferSeconds = $case.BufferSeconds

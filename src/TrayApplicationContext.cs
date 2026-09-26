@@ -263,7 +263,7 @@ namespace BoltSnip
 
             ReplayState state = _replayManager.State;
             bool saving = _replayManager.IsSaving;
-            _trayPopup.UpdateReplayState(state, saving);
+            _trayPopup.UpdateReplayState(state, saving, _replayManager.AudioState);
         }
 
         private void TrayIconMouseUp(object sender, MouseEventArgs e)

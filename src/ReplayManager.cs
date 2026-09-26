@@ -25,6 +25,9 @@ namespace BoltSnip
         private bool _stopEventDisposed;
         private bool _isSaving;
         private string _lastError;
+        private ReplayAudioState _audioState = ReplayAudioState.Disabled;
+        private double _audioWorkerCpuSeconds;
+        private double _audioInputDurationSeconds;
 
         internal ReplayManager()
             : this(new ReplaySettings())
@@ -53,6 +56,21 @@ namespace BoltSnip
         internal string LastError
         {
             get { lock (_syncRoot) { return _lastError; } }
+        }
+
+        internal ReplayAudioState AudioState
+        {
+            get { lock (_syncRoot) { return _audioState; } }
+        }
+
+        internal double AudioWorkerCpuSeconds
+        {
+            get { lock (_syncRoot) { return _audioWorkerCpuSeconds; } }
+        }
+
+        internal double AudioInputDurationSeconds
+        {
+            get { lock (_syncRoot) { return _audioInputDurationSeconds; } }
         }
 
         internal int BufferedSegmentCount
@@ -96,6 +114,9 @@ namespace BoltSnip
                 _stopEvent.Reset();
                 _stopRequested = false;
                 _lastError = null;
+                _audioWorkerCpuSeconds = 0;
+                _audioInputDurationSeconds = 0;
+                _audioState = _settings.capture_system_audio ? ReplayAudioState.Starting : ReplayAudioState.Disabled;
                 _state = ReplayState.Starting;
                 _recordingThread = new Thread(RecordLoop);
                 _recordingThread.IsBackground = true;
@@ -207,7 +228,6 @@ namespace BoltSnip
         {
             Thread recordingThread;
             Thread savingThread;
-            ReplayEncoder encoder;
             ReplaySaver saver;
             ReplayBuffer buffer;
             lock (_syncRoot)
@@ -227,7 +247,6 @@ namespace BoltSnip
                 }
                 recordingThread = _recordingThread;
                 savingThread = _savingThread;
-                encoder = _encoder;
                 saver = _saver;
             }
 
@@ -240,17 +259,13 @@ namespace BoltSnip
             {
                 saver.Cancel();
             }
-            if (encoder != null)
-            {
-                encoder.Stop();
-            }
-
             JoinQuietly(recordingThread, 12000);
             JoinQuietly(savingThread, 7000);
 
             lock (_syncRoot)
             {
                 _state = ReplayState.Disabled;
+                _audioState = ReplayAudioState.Disabled;
                 _encoder = null;
                 _buffer = null;
                 _saver = null;
@@ -273,6 +288,7 @@ namespace BoltSnip
         {
             ReplayEncoder encoder = new ReplayEncoder();
             ReplayCaptureSession captureSession = new ReplayCaptureSession();
+            ReplayAudioCaptureSession audioSession = null;
             ReplayBuffer buffer = null;
             bool failed = false;
             string failureMessage = null;
@@ -291,7 +307,69 @@ namespace BoltSnip
                     _buffer = buffer;
                 }
 
-                encoder.Start(cacheDirectory, _settings, captureSession);
+                if (_settings.capture_system_audio)
+                {
+                    try
+                    {
+                        audioSession = new ReplayAudioCaptureSession();
+                        audioSession.WaitUntilPrepared(5000);
+                    }
+                    catch (Exception exception)
+                    {
+                        ReplayDiagnostics.Write("Audio endpoint unavailable: " + exception.Message);
+                        SetAudioState(ReplayAudioState.Unavailable);
+                        if (audioSession != null)
+                        {
+                            audioSession.Dispose();
+                            audioSession = null;
+                        }
+                    }
+                }
+
+                if (audioSession == null)
+                {
+                    encoder.Start(cacheDirectory, _settings, captureSession, null);
+                }
+                else
+                {
+                    Exception audioStartFailure;
+                    bool audioStarted = TryStartWithAudio(delegate
+                    {
+                        encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
+                        audioSession.ConnectAndStart(5000);
+                    }, out audioStartFailure);
+
+                    if (audioStarted)
+                    {
+                        SetAudioState(ReplayAudioState.Active);
+                    }
+                    else
+                    {
+                        if (IsStopRequested())
+                        {
+                            throw new OperationCanceledException("Audio startup was stopped.");
+                        }
+
+                        ReplayDiagnostics.Write("Audio endpoint unavailable: " + audioStartFailure.Message);
+                        SetAudioState(ReplayAudioState.Unavailable);
+                        audioSession.Dispose();
+                        audioSession = null;
+                        encoder.Dispose();
+                        buffer.Dispose();
+                        buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                        encoder = new ReplayEncoder();
+                        lock (_syncRoot)
+                        {
+                            _encoder = encoder;
+                            _buffer = buffer;
+                            if (_disposed || _stopRequested)
+                            {
+                                return;
+                            }
+                        }
+                        encoder.Start(cacheDirectory, _settings, captureSession, null);
+                    }
+                }
                 DateTime startupDeadline = DateTime.UtcNow.AddSeconds(3);
                 while (!IsStopRequested() && !encoder.HasExited && DateTime.UtcNow < startupDeadline)
                 {
@@ -311,7 +389,10 @@ namespace BoltSnip
                     if (!_stopRequested && !_disposed)
                     {
                         _state = ReplayState.Recording;
-                        EnqueueNotification("即时回放已开启", "按 Alt+Shift+S 保存最近录像。", false);
+                        string audioNotice = _audioState == ReplayAudioState.Active
+                            ? " · 正在缓存系统声音。"
+                            : (_audioState == ReplayAudioState.Unavailable ? " · 系统音频不可用。" : string.Empty);
+                        EnqueueNotification("即时回放已开启", "按 Alt+Shift+S 保存最近录像" + audioNotice, false);
                     }
                 }
 
@@ -336,6 +417,10 @@ namespace BoltSnip
                     if (encoder.HasExited)
                     {
                         throw BuildEncoderFailure(encoder, "即时回放捕获进程意外退出");
+                    }
+                    if (audioSession != null)
+                    {
+                        UpdateAudioStateFromSession(audioSession);
                     }
                     if (captureSession.HasDisplayChanged())
                     {
@@ -367,6 +452,24 @@ namespace BoltSnip
             }
             finally
             {
+                if (audioSession != null)
+                {
+                    double audioWorkerCpuSeconds = audioSession.WorkerCpuSeconds;
+                    double audioInputDurationSeconds = audioSession.WrittenDurationSeconds;
+                    lock (_syncRoot)
+                    {
+                        _audioWorkerCpuSeconds = audioWorkerCpuSeconds;
+                        _audioInputDurationSeconds = audioInputDurationSeconds;
+                    }
+                    if (audioInputDurationSeconds > 0)
+                    {
+                        ReplayDiagnostics.Write(
+                            "Audio input samples written: duration=" +
+                            audioInputDurationSeconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + "s");
+                    }
+                    audioSession.Stop();
+                    audioSession.Dispose();
+                }
                 encoder.Stop();
                 encoder.Dispose();
                 if (buffer != null)
@@ -388,17 +491,23 @@ namespace BoltSnip
                     if (_disposed || _stopRequested)
                     {
                         _state = ReplayState.Disabled;
+                        _audioState = ReplayAudioState.Disabled;
                         _lastError = null;
                     }
                     else if (failed)
                     {
                         _state = ReplayState.Error;
+                        if (_settings.capture_system_audio)
+                        {
+                            _audioState = ReplayAudioState.Unavailable;
+                        }
                         _lastError = failureMessage;
                         EnqueueNotification("即时回放启动或录制失败", failureMessage, true);
                     }
                     else
                     {
                         _state = ReplayState.Disabled;
+                        _audioState = ReplayAudioState.Disabled;
                     }
                     _recordingThread = null;
                     TryDisposeStopEventUnsafe();
@@ -475,6 +584,50 @@ namespace BoltSnip
             lock (_syncRoot)
             {
                 return _stopRequested || _disposed;
+            }
+        }
+
+        private void SetAudioState(ReplayAudioState state)
+        {
+            lock (_syncRoot)
+            {
+                _audioState = state;
+            }
+        }
+
+        internal static bool TryStartWithAudio(Action startWithAudio, out Exception failure)
+        {
+            if (startWithAudio == null)
+            {
+                throw new ArgumentNullException("startWithAudio");
+            }
+            try
+            {
+                startWithAudio();
+                failure = null;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+                return false;
+            }
+        }
+
+        private void UpdateAudioStateFromSession(ReplayAudioCaptureSession audioSession)
+        {
+            ReplayAudioState state = audioSession.State;
+            lock (_syncRoot)
+            {
+                ReplayAudioState previous = _audioState;
+                _audioState = state;
+                if (previous == ReplayAudioState.Active && state == ReplayAudioState.Unavailable && !_disposed)
+                {
+                    EnqueueNotification(
+                        "系统音频不可用",
+                        "即时回放仍在录制视频；系统声音将保持静音，重新开启回放后可重试。",
+                        true);
+                }
             }
         }
 
