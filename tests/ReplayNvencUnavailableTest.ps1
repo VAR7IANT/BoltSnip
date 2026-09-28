@@ -48,11 +48,13 @@ public static class FakeFfmpeg
     }
     $errorMessage = [string]$lastError.GetValue($manager, $null)
     $errorState = $state.GetValue($manager, $null).ToString()
-    $rejectedWithoutFallback = $errorState -eq 'Error' -and $errorMessage.Contains('h264_nvenc')
+    $rejectedWithoutFallback = $errorState -eq 'Error' -and $errorMessage.Contains('h264_nvenc') -and
+        -not $errorMessage.Contains('实验版')
     [void]$dispose.Invoke($manager, $null)
 
     [pscustomobject]@{
         MissingNvencRejectedClearly = $rejectedWithoutFallback
+        ExperimentalProductCopyRemoved = -not $errorMessage.Contains('实验版')
         State = $errorState
         ErrorMessage = $errorMessage
         Passed = $rejectedWithoutFallback

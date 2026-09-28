@@ -110,8 +110,10 @@ namespace BoltSnip
 
                     if (process.ExitCode != 0)
                     {
+                        string ffmpegError = ReplayProcessSupport.ReadError(standardError);
+                        ReplayDiagnostics.Write("FFmpeg replay save failed: " + ffmpegError);
                         throw new InvalidOperationException(
-                            "FFmpeg 合并片段失败：" + ReplayProcessSupport.ReadError(standardError));
+                            "FFmpeg 合并片段失败：回放文件未能生成。请检查保存位置、磁盘空间和写入权限。");
                     }
                     if (!File.Exists(temporaryOutputPath) || new FileInfo(temporaryOutputPath).Length == 0)
                     {

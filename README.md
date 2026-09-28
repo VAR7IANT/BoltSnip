@@ -58,13 +58,13 @@ BoltSnip 安装到当前用户的 `%LOCALAPPDATA%\Programs\BoltSnip`，无需管
 
 右键系统托盘中的 BoltSnip 图标，选择“设置保存目录…”。确定选区后单击右键会直接以无损 PNG 保存到该目录；尚未设置时默认使用系统“图片”目录下的 `BoltSnip` 文件夹。需要临时更改文件名、目录或保存为 JPEG 时，使用 `Shift + 右键` 或 `Ctrl+S`。
 
-## 实验性即时回放
+## 即时回放
 
-右键托盘图标，选择“启用即时回放”后，BoltSnip 会持续捕获主显示器并将最近最多 5 分钟保存为分段 MP4。按 `Alt+Shift+S` 或从托盘选择“保存即时回放”可在后台合并当前缓存；录制不会为保存而停止。文件保存到系统“视频”目录下的 `BoltSnip` 文件夹。关闭即时回放或退出程序后会清理缓存。
+右键托盘图标，选择“启用即时回放”后，BoltSnip 会以 60 帧/秒持续捕获主显示器，并将最近最多 5 分钟保存为分段 MP4。按 `Alt+Shift+S` 或从托盘选择“保存即时回放”可在后台合并当前缓存；录制不会为保存而停止。文件保存到系统“视频”目录下的 `BoltSnip` 文件夹。关闭即时回放或退出程序后会清理缓存。
 
-此实验版需要 Windows 版 FFmpeg，且该构建必须包含 `h264_nvenc` 和 AAC 编码器。可将 `ffmpeg.exe` 放到 BoltSnip 安装目录、加入 `PATH`，或设置 `BOLTSNIP_FFMPEG_PATH` 指向该文件。BoltSnip 不会自动下载或捆绑 FFmpeg；检测不到 NVENC 时会显示原因，不会切换到软件编码。即时回放默认通过 Windows WASAPI Loopback 缓存默认输出设备的系统声音，并在保存的 MP4 中包含 AAC 音轨；麦克风和单应用音频捕获不受支持。若系统音频设备或格式不可用，即时回放会继续录制无音频的视频。
+即时回放需要 Windows 版 FFmpeg，且该构建必须包含 `h264_nvenc` 和 AAC 编码器。可将 `ffmpeg.exe` 放到 BoltSnip 安装目录、加入 `PATH`，或设置 `BOLTSNIP_FFMPEG_PATH` 指向该文件。BoltSnip 不会自动下载或捆绑 FFmpeg；检测不到 NVENC 时会说明原因，不会切换到软件编码。即时回放默认通过 Windows WASAPI Loopback 缓存默认输出设备的系统声音，并在保存的 MP4 中包含 AAC 音轨；麦克风和单应用音频捕获不受支持。若系统音频设备或格式不可用，即时回放会继续录制无音频的视频。
 
-Capture V2 的 Instant Replay 在单显示器系统上默认使用 FFmpeg ddagrab（DXGI Desktop Duplication），在多显示器或显示器检测失败时安全使用 gdigrab。可通过进程环境变量 BOLTSNIP_REPLAY_CAPTURE_BACKEND=gdigrab 或 ddagrab 显式覆写选择；覆写值不区分大小写。DDA 启动失败或运行中发生 DXGI capture failure 时会回退到 gdigrab。该策略不改变 WASAPI、AAC、NVENC 编码和 2 秒分段设置。
+单显示器时默认使用 DDA 桌面捕获；多显示器或无法检测显示器时使用 GDI 兼容捕获。若 DDA 无法启动或录制中失败，BoltSnip 会自动切换到 GDI 并继续录制，同时重新开始回放缓存。诊断时可通过进程环境变量 `BOLTSNIP_REPLAY_CAPTURE_BACKEND=gdigrab` 或 `ddagrab` 临时覆盖默认选择。
 
 即时回放的启停、错误、缓存淘汰和保存结果会自动写入现有诊断日志。默认日志位置为 `%LOCALAPPDATA%\BoltSnip\diagnostic.log`；可通过 `BOLTSNIP_DIAGNOSTIC_LOG_PATH` 指定日志文件。截图细节诊断仍需设置 `BOLTSNIP_DIAGNOSTIC_LOG=1` 后启动 BoltSnip。
 

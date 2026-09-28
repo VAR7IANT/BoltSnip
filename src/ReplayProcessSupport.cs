@@ -123,8 +123,10 @@ namespace BoltSnip
 
                 if (process.ExitCode != 0)
                 {
+                    ReplayDiagnostics.Write(
+                        "FFmpeg encoder probe failed: " + ReadError(standardError));
                     throw new ReplayNotSupportedException(
-                        "FFmpeg 无法检查编码器：" + ReadError(standardError));
+                        "无法检查 FFmpeg 的编码器支持。请确认 FFmpeg 文件可正常运行后重试；详细信息已写入诊断日志。");
                 }
             }
 
@@ -133,7 +135,7 @@ namespace BoltSnip
                 if (!encoderFound)
                 {
                     throw new ReplayNotSupportedException(
-                        "当前 FFmpeg 没有 h264_nvenc 编码器。即时回放实验版暂不提供软件编码回退。");
+                        "当前 FFmpeg 没有 h264_nvenc 编码器。即时回放需要带 NVIDIA NVENC 支持的 FFmpeg。");
                 }
             }
         }

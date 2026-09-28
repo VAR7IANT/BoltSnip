@@ -521,7 +521,7 @@ namespace BoltSnip
                 graphics.DrawPath(border, buttonPath);
             }
 
-            string saveText = _isSaving ? "正在保存…" : (showSaved ? "已保存" : "保存回放");
+            string saveText = _isSaving ? "正在保存…" : (showSaved ? "保存完成" : "保存回放");
             Color saveColor = showSaved ? AccentColor : (saveEnabled ? TextColor : MutedTextColor);
             Rectangle saveLabel = new Rectangle(saveButton.Left + Scale(10), saveButton.Top, Scale(148), saveButton.Height);
             DrawText(graphics, saveText, _mediumFont, saveColor, saveLabel, StringAlignment.Near);
@@ -539,32 +539,32 @@ namespace BoltSnip
             bool enabled = _replayState == ReplayState.Starting || _replayState == ReplayState.Recording;
             if (_isSaving)
             {
-                text = "Saving…";
+                text = "保存中…";
                 color = AccentColor;
             }
             else if (_replayState == ReplayState.Starting)
             {
-                text = "Starting…";
+                text = "启动中…";
                 color = AccentColor;
             }
             else if (_replayState == ReplayState.Recording)
             {
-                text = "ON";
+                text = "录制中";
                 color = AccentColor;
             }
             else if (_replayState == ReplayState.Stopping)
             {
-                text = "Stopping…";
+                text = "停止中…";
                 color = SecondaryTextColor;
             }
             else if (_replayState == ReplayState.Error)
             {
-                text = "Error";
+                text = "错误";
                 color = ErrorColor;
             }
             else
             {
-                text = "OFF";
+                text = "已关闭";
                 color = SecondaryTextColor;
             }
 
@@ -604,7 +604,7 @@ namespace BoltSnip
             {
                 return "启动失败，点击开关重试";
             }
-            return "保存最近 5 分钟";
+            return "点击开关启用即时回放";
         }
 
         private void DrawSettings(Graphics graphics)

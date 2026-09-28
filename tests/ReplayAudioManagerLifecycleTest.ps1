@@ -1,7 +1,8 @@
 param(
     [string]$Executable = (Join-Path (Split-Path $PSScriptRoot -Parent) 'obj\instant-replay-audio\bin\BoltSnip.exe'),
     [string]$Ffmpeg = (Join-Path (Split-Path $PSScriptRoot -Parent) 'bin\ffmpeg.exe'),
-    [string]$EvidenceDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) '.tools\instant-replay-audio-evidence')
+    [string]$EvidenceDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) '.tools\instant-replay-audio-evidence'),
+    [int]$Cycles = 3
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +35,7 @@ $baselineCacheDirectories = if ([IO.Directory]::Exists($cacheRoot)) { @([IO.Dire
 
 try {
     $manager = [Activator]::CreateInstance($managerType, $true)
-    for ($round = 1; $round -le 3; $round++) {
+    for ($round = 1; $round -le $Cycles; $round++) {
         $ffmpegBefore = @(Get-Process -Name ffmpeg -ErrorAction SilentlyContinue | ForEach-Object Id)
         [void]$start.Invoke($manager, $null)
         $startupDeadline = [DateTime]::UtcNow.AddSeconds(20)
@@ -97,7 +98,7 @@ finally {
     else { [Environment]::SetEnvironmentVariable('BOLTSNIP_DIAGNOSTIC_LOG_PATH', $null, 'Process') }
 }
 
-$report = [pscustomobject]@{ Rounds = $results; Passed = $results.Count -eq 3 -and @($results | Where-Object { -not $_.Passed }).Count -eq 0; DiagnosticLog = $diagnosticPath }
+$report = [pscustomobject]@{ Rounds = $results; Passed = $results.Count -eq $Cycles -and @($results | Where-Object { -not $_.Passed }).Count -eq 0; DiagnosticLog = $diagnosticPath }
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runDirectory 'result.json') -Encoding UTF8
 $report | Format-List
 if (-not $report.Passed) { exit 1 }

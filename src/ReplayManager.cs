@@ -455,10 +455,17 @@ namespace BoltSnip
                     if (!_stopRequested && !_disposed)
                     {
                         _state = ReplayState.Recording;
+                        string captureNotice = _settings.capture_backend == ReplayCaptureBackend.DdaGrab &&
+                            captureSession.Backend == ReplayCaptureBackend.GdiGrab
+                            ? BuildCaptureFallbackNotification(false) + " "
+                            : string.Empty;
                         string audioNotice = _audioState == ReplayAudioState.Active
                             ? " · 正在缓存系统声音。"
                             : (_audioState == ReplayAudioState.Unavailable ? " · 系统音频不可用。" : string.Empty);
-                        EnqueueNotification("即时回放已开启", "按 Alt+Shift+S 保存最近录像" + audioNotice, false);
+                        EnqueueNotification(
+                            "即时回放已开启",
+                            captureNotice + "按 Alt+Shift+S 保存最近录像" + audioNotice,
+                            false);
                     }
                 }
 
@@ -640,7 +647,7 @@ namespace BoltSnip
                                     _lastError = null;
                                     EnqueueNotification(
                                         "即时回放捕获已自动恢复",
-                                        "即时回放捕获已自动恢复，最近录像缓存已重新开始。",
+                                        BuildCaptureFallbackNotification(true),
                                         false);
                                 }
 
@@ -807,7 +814,10 @@ namespace BoltSnip
                 {
                     if (!_disposed)
                     {
-                        EnqueueNotification("即时回放保存失败", exception.Message, true);
+                        EnqueueNotification(
+                            "即时回放保存失败",
+                            BuildSaveFailureNotificationMessage(exception.Message),
+                            true);
                     }
                 }
             }
@@ -1164,7 +1174,25 @@ namespace BoltSnip
         {
             string details = encoder.RecentError;
             return new InvalidOperationException(
-                string.IsNullOrWhiteSpace(details) ? message : message + Environment.NewLine + details);
+                string.IsNullOrWhiteSpace(details) ? message : message + "。详细信息已写入诊断日志。");
+        }
+
+        internal static string BuildCaptureFallbackNotification(bool runtimeRecovery)
+        {
+            return runtimeRecovery
+                ? "DDA 桌面捕获异常，已切换到兼容模式（GDI）并继续录制；回放缓存已重新开始。"
+                : "DDA 桌面捕获无法启动，已切换到兼容模式（GDI）。";
+        }
+
+        internal static string BuildSaveFailureNotificationMessage(string message)
+        {
+            if (!string.IsNullOrEmpty(message) &&
+                message.IndexOf("FFmpeg 合并片段失败：", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "FFmpeg 无法生成回放文件。请检查保存位置、磁盘空间和写入权限；详细信息已写入诊断日志。";
+            }
+
+            return message;
         }
 
         private void EnqueueNotification(string title, string message, bool isError)
