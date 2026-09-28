@@ -195,17 +195,31 @@ namespace BoltSnip
                 ReplayProcessSupport.QuoteArgument(outputPath);
         }
 
-        private static void WriteManifest(string path, ReplaySegment[] segments)
+        internal static string BuildManifestText(ReplaySegment[] segments)
         {
+            if (segments == null)
+            {
+                throw new ArgumentNullException("segments");
+            }
+
             StringBuilder contents = new StringBuilder();
             contents.AppendLine("ffconcat version 1.0");
             for (int index = 0; index < segments.Length; index++)
             {
+                ReplaySegment segment = segments[index];
                 contents.Append("file '")
-                    .Append(EscapeConcatPath(segments[index].Path))
+                    .Append(EscapeConcatPath(segment.Path))
                     .AppendLine("'");
+                contents.Append("duration ")
+                    .Append(segment.DurationSeconds.ToString("0.#################", CultureInfo.InvariantCulture))
+                    .AppendLine();
             }
-            File.WriteAllText(path, contents.ToString(), new UTF8Encoding(false));
+            return contents.ToString();
+        }
+
+        private static void WriteManifest(string path, ReplaySegment[] segments)
+        {
+            File.WriteAllText(path, BuildManifestText(segments), new UTF8Encoding(false));
         }
 
         private static string EscapeConcatPath(string path)
