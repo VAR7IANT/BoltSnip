@@ -1,0 +1,13 @@
+2026-10-03T06:12:48.9584215Z	QPC=28306740816	ProductExe=D:\Codex\Work\BoltSnip-FinalStabilization\final-build\BoltSnip.exe; ExeSHA256=87BFEECC4FD475AE14324F5E4D3D79DBB744E7DC6B68DBCDC6125D25905529C4; ActualCapture=reflection Product ScreenCapture.Capture
+2026-10-03T06:12:48.9584215Z	QPC=28306742981	Embedded.BuildId=6da7099a7fbcf98e44de72c962ff44d613b791cb
+2026-10-03T06:12:48.9584215Z	QPC=28306743360	Embedded.BuildTimeUtc=2026-10-03T06:02:51.2800866Z
+2026-10-03T06:12:48.9624210Z	QPC=28306783066	Owned Edge profile=D:\Codex\Work\BoltSnip-FinalStabilization\chromium-visible-100\BoltSnipProbe-9ab631e23e2f4850a5c8ce3884d0d340\owned-edge-profile; arguments=--user-data-dir="D:\Codex\Work\BoltSnip-FinalStabilization\chromium-visible-100\BoltSnipProbe-9ab631e23e2f4850a5c8ce3884d0d340\owned-edge-profile" --no-first-run --no-default-browser-check --disable-background-networking --disable-sync --disable-extensions --disable-component-update --host-resolver-rules="MAP * ~NOTFOUND" --proxy-server=direct:// --new-window "file:///D:/Codex/Work/BoltSnip-FinalStabilization/chromium-visible-100/BoltSnipProbe-9ab631e23e2f4850a5c8ce3884d0d340/fixture.html"; default GPU enabled; actual hardware acceleration NOT VERIFIED; fixture CSP blocks network; QPCFrequency=10000000
+2026-10-03T06:12:48.9814220Z	QPC=28306967577	OwnedEdgePid=13684
+2026-10-03T06:12:50.9635296Z	QPC=28326787112	Owned browser HWND_TOPMOST; historical unbracketed run with unrelated Antigravity window occlusion is invalid browser evidence; existing mismatches retained, no product-failure attribution
+2026-10-03T06:12:50.9635296Z	QPC=28326790055	Desktop={X=0,Y=0,Width=2560,Height=1600}; ownedHwnd=332846; sampleSpacing=1 physical pixels; exact RGB/A comparisons in stated ROI only; spacing1=every ROI pixel; larger spacing=sampled evidence
+2026-10-03T06:12:50.9664895Z	QPC=28326820315	chromium-static region={X=65,Y=200,Width=1120,Height=850}; iterations=100; NativeBefore -> Product -> NativeAfter temporal bracket; static scene required; not simultaneous; reference shares underlying BitBlt API, avoids GDI+ HDC target; point ownership grid40px before/after each bracket
+2026-10-03T06:12:50.9761001Z	QPC=28326914440	FAIL System.Exception: INFRASTRUCTURE INVALID: intended browser ROI occluded at 66,201; actualRootHwnd=1574178; ownedBrowser=332846; no product-failure attribution
+   在 ChromiumScreenshotProbe.VerifyVisible(Rectangle region, Rectangle layered)
+   在 ChromiumScreenshotProbe.Compare(String label, Rectangle region, Rectangle layered, Int32 count)
+   在 ChromiumScreenshotProbe.Main(String[] args)
+2026-10-03T06:12:52.1671479Z	QPC=28338826578	OwnedEdgeExited=True; profile retained as evidence; no unrelated process cleanup

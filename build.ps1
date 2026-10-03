@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'bin'),
     [switch]$EnableLicensing,
     [string]$OwnerPublicKeyPath,
@@ -47,7 +47,7 @@ $git = Get-Command git.exe -ErrorAction SilentlyContinue
 if ($null -ne $git) {
     $gitProcess = New-Object Diagnostics.Process
     $gitProcess.StartInfo.FileName = $git.Source
-    $gitProcess.StartInfo.Arguments = '-C "' + $PSScriptRoot + '" rev-parse --short=12 HEAD'
+    $gitProcess.StartInfo.Arguments = '-C "' + $PSScriptRoot + '" rev-parse HEAD'
     $gitProcess.StartInfo.UseShellExecute = $false
     $gitProcess.StartInfo.CreateNoWindow = $true
     $gitProcess.StartInfo.RedirectStandardOutput = $true
@@ -61,7 +61,10 @@ if ($null -ne $git) {
 $buildId = if ([string]::IsNullOrWhiteSpace($commit)) {
     'local-' + [DateTime]::UtcNow.ToString('yyyyMMddHHmmssZ', [Globalization.CultureInfo]::InvariantCulture)
 } else {
-    $commit.Trim()
+    $commit.Trim() + $(
+        & $git.Source -C $PSScriptRoot diff --quiet HEAD -- src build.ps1
+        if ($LASTEXITCODE -ne 0) { '.dirty' }
+    )
 }
 
 function ConvertTo-CSharpLiteral([string]$value) {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -68,7 +68,10 @@ namespace BoltSnip
                 "; PID=" + processId.ToString(CultureInfo.InvariantCulture) +
                 "; StartedAtUtc=" + startupTimeUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) +
                 "; BuildTimeUtc=" + BuildTimeUtc +
-                "; BuildId=" + BuildId;
+                "; BuildId=" + BuildId +
+                "; BuildCommit=" + (BuildId.Length >= 40 ? BuildId.Substring(0, 40) : "unknown") +
+                "; BuildDirty=" + BuildId.EndsWith(".dirty", StringComparison.Ordinal) +
+                "; ScreenCaptureBackend=NativeTopDownDibBitBlt";
         }
     }
 }

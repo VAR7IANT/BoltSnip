@@ -1,0 +1,7 @@
+stage	anomalies	mismatchesAgainstStage0	format
+StageA	242	242	Format32bppPArgb
+StageB	242	242	Format32bppPArgb
+StageC	242	242	Format32bppPArgb
+StageD	242	242	Format32bppRgb
+StageE	242	242	Format32bppArgb
+Overlay	0	242	Format32bppArgb

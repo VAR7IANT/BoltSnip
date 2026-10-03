@@ -1,0 +1,15 @@
+2026-10-03T05:52:42.6865668Z	QPC=16244030694	CaptureId=a1247d6732504967af54c8958a2094eb; Exe=D:\Codex\Work\BoltSnip-FinalStabilization\diagnostic-build\BoltSnip.exe; ExeSHA256=A90936C95EF47BADC7F6A74B65449A6027E380A083D66F6A73C5090BF6D7B81A; OperatorExpectedCommit=d16bd21e573befae37e15bcf8983c5325517b51c; QPCFrequency=10000000
+2026-10-03T05:52:42.6879539Z	QPC=16244032634	Identity=BoltSnip, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null; backend=invoked Product ScreenCapture.Capture; Stage0 and StageA are sequential acquisitions, NEVER asserted same frame; requires static scene
+2026-10-03T05:52:42.6903768Z	QPC=16244062143	Desktop={X=0,Y=0,Width=2560,Height=1600}; ROI in virtual-bitmap coordinates={X=300,Y=50,Width=900,Height=950}; monitors=1
+2026-10-03T05:52:42.7528520Z	QPC=16244686830	SourceImage=C:\Users\VAR7IANT\Downloads\微信图片_20261002211430_14028_160.png; SHA256=E66CEA095AB34921525CBD303BA6585DC9E2A269E0DD092D823C26D81142DA32; dimensions={Width=1640, Height=2360}
+2026-10-03T05:52:43.0863872Z	QPC=16248021081	Scene=static source PNG rendered native 1:1 at virtual desktop origin; clipped to physical desktop, no scale; fixture, NOT live browser reproduction
+2026-10-03T05:52:43.0888273Z	QPC=16248046149	Stage0 acquisition begin
+2026-10-03T05:52:43.2527026Z	QPC=16249682663	Stage0 acquisition end
+2026-10-03T05:52:43.2803762Z	QPC=16249960362	StageA product acquisition begin
+2026-10-03T05:52:43.4335388Z	QPC=16251489550	StageA product acquisition end
+2026-10-03T05:52:43.9362608Z	QPC=16256519934	Overlay diagnostic selection={X=296,Y=46,Width=908,Height=958}; tracking stopped; magnifier/guides disabled; ROI excludes 4px border; toolbar may overlap and needs human review
+2026-10-03T05:52:44.0691532Z	QPC=16257844686	Overlay physical desktop acquisition begin
+2026-10-03T05:52:44.2618797Z	QPC=16259770347	Overlay physical desktop acquisition end
+2026-10-03T05:52:46.6067152Z	QPC=16283225166	candidateConnectedComponents=151; thresholds are hypotheses, not automatic proof; stored premultiplied bytes preserved
+2026-10-03T05:52:46.6077187Z	QPC=16283228202	COLLECTION COMPLETE; not acceptance; browser/dynamic/multi-monitor/DPI/performance must be tested separately
+2026-10-03T05:52:46.7270939Z	QPC=16284423845	Clipboard restore attempted; delayed formats cannot be guaranteed preserved
