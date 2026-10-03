@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -176,7 +176,17 @@ class ScreenshotPipelineProbe
             }
             clipboard=Clipboard.GetDataObject();
             Note("Stage0 acquisition begin");Bitmap reference=Native(desktop);dispose.Add(reference);reference.Save(Path.Combine(dir,"Stage0-native.png"));Note("Stage0 acquisition end");
-            if(scene!=null){BoundsChecks(capture);Repeated(capture,desktop,roi,reference,dir);}else Note("100 repeated fixture and allocation checks SKIPPED: SourceImage required");
+            if(scene!=null){
+                if(!new Rectangle(0,0,scene.Image.Width,scene.Image.Height).Contains(roi))throw new Exception("Source ROI outside image");
+                byte[] visible=Bytes(reference),expectedScene=Bytes(scene.Image);long sceneBad=0;
+                for(int y=roi.Top;y<roi.Bottom;y++)for(int x=roi.Left;x<roi.Right;x++){
+                    int v=(y*reference.Width+x)*4,s=(y*scene.Image.Width+x)*4;
+                    if(visible[v]!=expectedScene[s]||visible[v+1]!=expectedScene[s+1]||visible[v+2]!=expectedScene[s+2]||visible[v+3]!=expectedScene[s+3])sceneBad++;
+                }
+                Note("SourceSceneReferenceMismatches="+sceneBad+"; verifies native 1:1 visible source ROI before attributing corruption");
+                if(sceneBad!=0)throw new Exception("INFRASTRUCTURE INVALID: visible source scene differs from source image");
+                BoundsChecks(capture);Repeated(capture,desktop,roi,reference,dir);
+            }else Note("100 repeated fixture and allocation checks SKIPPED: SourceImage required");
             Bitmap raw=null;
             Func<Rectangle,Bitmap> provider=delegate(Rectangle bounds){Note("StageA product acquisition begin");Bitmap returned=(Bitmap)capture.GetMethod("Capture",Hidden).Invoke(null,new object[]{bounds});raw=(Bitmap)returned.Clone();dispose.Add(raw);raw.Save(Path.Combine(dir,"StageA-raw.png"));Note("StageA product acquisition end");return returned;};
             overlay=(Form)ot.GetConstructor(Hidden,null,new Type[]{typeof(Func<string>),typeof(Func<Rectangle,Bitmap>),typeof(Func<Rectangle,List<Rectangle>>),typeof(Action),typeof(Action)},null).Invoke(new object[]{new Func<string>(delegate{return dir;}),provider,new Func<Rectangle,List<Rectangle>>(delegate(Rectangle r){return new List<Rectangle>();}),null,null});
