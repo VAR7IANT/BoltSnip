@@ -1,0 +1,13 @@
+2026-10-03T06:16:40.8832883Z	QPC=30625988911	CaptureId=d2138fb2f3e64062be3cab14d7e9fe94; Exe=D:\Codex\Outputs\BoltSnip-ProductV1-Stabilization-20261003\BoltSnip.exe; ExeSHA256=19F394CD9239B0923919420C72432F3C9D47AC5625CE3D38F3E52AC085E4871B; OperatorExpectedCommit=300; QPCFrequency=10000000
+2026-10-03T06:16:40.8832883Z	QPC=30625990739	Identity=BoltSnip, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null; backend=invoked Product ScreenCapture.Capture; Stage0 and StageA are sequential acquisitions, NEVER asserted same frame; requires static scene
+2026-10-03T06:16:40.8842883Z	QPC=30626001293	Embedded.ProductName=BoltSnip
+2026-10-03T06:16:40.8842883Z	QPC=30626001963	Embedded.Version=1.0.0
+2026-10-03T06:16:40.8842883Z	QPC=30626002186	Embedded.BuildTimeUtc=2026-10-03T06:16:38.0538568Z
+2026-10-03T06:16:40.8857972Z	QPC=30626015716	Embedded.BuildId=1042006187a528a1c40cbbba45916d233ea65a3c
+2026-10-03T06:16:40.8857972Z	QPC=30626016191	EmbeddedCommitFromBuildId=1042006187a528a1c40cbbba45916d233ea65a3c; full BuildId retained above; build id may include dirty marker
+2026-10-03T06:16:40.8868006Z	QPC=30626024498	EmbeddedStartupDetails=Version=1.0.0; Path=D:\Codex\Outputs\BoltSnip-ProductV1-Stabilization-20261003\BoltSnip.exe; PID=38716; StartedAtUtc=2026-10-03T06:16:40.8857972Z; BuildTimeUtc=2026-10-03T06:16:38.0538568Z; BuildId=1042006187a528a1c40cbbba45916d233ea65a3c; BuildCommit=1042006187a528a1c40cbbba45916d233ea65a3c; BuildDirty=False; ScreenCaptureBackend=NativeTopDownDibBitBlt
+2026-10-03T06:16:40.9033193Z	QPC=30626190865	FAIL System.FormatException: 输入字符串的格式不正确。
+   在 System.Number.StringToNumber(String str, NumberStyles options, NumberBuffer& number, NumberFormatInfo info, Boolean parseDecimal)
+   在 System.Number.ParseInt32(String s, NumberStyles style, NumberFormatInfo info)
+   在 ScreenshotPipelineProbe.Main(String[] args)
+2026-10-03T06:16:40.9078376Z	QPC=30626230963	Clipboard restore attempted; delayed formats cannot be guaranteed preserved

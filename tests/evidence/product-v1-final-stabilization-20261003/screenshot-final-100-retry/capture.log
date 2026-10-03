@@ -1,0 +1,29 @@
+2026-10-03T06:17:17.6954691Z	QPC=30994111165	CaptureId=d8553cb0152c4f41a96ed1db369d30b9; Exe=D:\Codex\Outputs\BoltSnip-ProductV1-Stabilization-20261003\BoltSnip.exe; ExeSHA256=19F394CD9239B0923919420C72432F3C9D47AC5625CE3D38F3E52AC085E4871B; OperatorExpectedCommit=1042006187a528a1c40cbbba45916d233ea65a3c; QPCFrequency=10000000
+2026-10-03T06:17:17.6954691Z	QPC=30994112601	Identity=BoltSnip, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null; backend=invoked Product ScreenCapture.Capture; Stage0 and StageA are sequential acquisitions, NEVER asserted same frame; requires static scene
+2026-10-03T06:17:17.6965396Z	QPC=30994119990	Embedded.ProductName=BoltSnip
+2026-10-03T06:17:17.6965396Z	QPC=30994120454	Embedded.Version=1.0.0
+2026-10-03T06:17:17.6975512Z	QPC=30994132814	Embedded.BuildTimeUtc=2026-10-03T06:16:38.0538568Z
+2026-10-03T06:17:17.6975512Z	QPC=30994132987	Embedded.BuildId=1042006187a528a1c40cbbba45916d233ea65a3c
+2026-10-03T06:17:17.6975512Z	QPC=30994133294	EmbeddedCommitFromBuildId=1042006187a528a1c40cbbba45916d233ea65a3c; full BuildId retained above; build id may include dirty marker
+2026-10-03T06:17:17.6985396Z	QPC=30994138807	EmbeddedStartupDetails=Version=1.0.0; Path=D:\Codex\Outputs\BoltSnip-ProductV1-Stabilization-20261003\BoltSnip.exe; PID=15568; StartedAtUtc=2026-10-03T06:17:17.6975512Z; BuildTimeUtc=2026-10-03T06:16:38.0538568Z; BuildId=1042006187a528a1c40cbbba45916d233ea65a3c; BuildCommit=1042006187a528a1c40cbbba45916d233ea65a3c; BuildDirty=False; ScreenCaptureBackend=NativeTopDownDibBitBlt
+2026-10-03T06:17:17.7025392Z	QPC=30994178896	Desktop={X=0,Y=0,Width=2560,Height=1600}; ROI in virtual-bitmap coordinates={X=300,Y=50,Width=900,Height=950}; monitors=1
+2026-10-03T06:17:17.7490553Z	QPC=30994644123	SourceImage=C:\Users\VAR7IANT\Downloads\微信图片_20261002211430_14028_160.png; SHA256=E66CEA095AB34921525CBD303BA6585DC9E2A269E0DD092D823C26D81142DA32; dimensions={Width=1640, Height=2360}
+2026-10-03T06:17:18.2351990Z	QPC=30999511244	Scene=static source PNG rendered native 1:1 at virtual desktop origin; clipped to physical desktop, no scale; fixture, NOT live browser reproduction
+2026-10-03T06:17:18.2372021Z	QPC=30999530977	Stage0 acquisition begin
+2026-10-03T06:17:18.3905493Z	QPC=31001057805	Stage0 acquisition end
+2026-10-03T06:17:18.7827422Z	QPC=31004980513	SourceSceneReferenceMismatches=0; verifies native 1:1 visible source ROI before attributing corruption
+2026-10-03T06:17:18.8044458Z	QPC=31005202510	BoundsValidation={X=0,Y=0,Width=0,Height=1}; actual=ArgumentOutOfRangeException; expected=ArgumentOutOfRangeException; verdict=PASS
+2026-10-03T06:17:18.8054447Z	QPC=31005207729	BoundsValidation={X=0,Y=0,Width=1,Height=0}; actual=ArgumentOutOfRangeException; expected=ArgumentOutOfRangeException; verdict=PASS
+2026-10-03T06:17:18.8059482Z	QPC=31005210849	BoundsValidation={X=0,Y=0,Width=-1,Height=1}; actual=ArgumentOutOfRangeException; expected=ArgumentOutOfRangeException; verdict=PASS
+2026-10-03T06:17:18.8059482Z	QPC=31005214133	BoundsValidation={X=0,Y=0,Width=536870912,Height=1}; actual=OverflowException; expected=OverflowException; verdict=PASS
+2026-10-03T06:17:18.8059482Z	QPC=31005219402	BoundsValidation={X=0,Y=0,Width=16384,Height=32768}; actual=OverflowException; expected=OverflowException; verdict=PASS
+2026-10-03T06:17:23.9638341Z	QPC=31056800750	RepeatedStaticFixture=100; totalRgbaMismatchPixels=0; totalCandidateAnomalies=0; captureMillisecondsMedian=38.754650; P95NearestRank=44.665700; Max=48.794700; GdiBefore=24; GdiAfter=24; GdiDelta=0
+2026-10-03T06:17:23.9638341Z	QPC=31056800922	Timing includes reflection invocation and product bitmap materialization, excludes scanning/save/dispose; reference acquired separately in static scene; no browser or dynamic-scene claim
+2026-10-03T06:17:24.0016021Z	QPC=31057171591	StageA product acquisition begin
+2026-10-03T06:17:24.1529211Z	QPC=31058690958	StageA product acquisition end
+2026-10-03T06:17:24.6718586Z	QPC=31063872708	Overlay diagnostic selection={X=296,Y=46,Width=908,Height=958}; tracking stopped; magnifier/guides disabled; ROI excludes 4px border; toolbar may overlap and needs human review
+2026-10-03T06:17:24.8229002Z	QPC=31065382932	Overlay physical desktop acquisition begin
+2026-10-03T06:17:25.0312956Z	QPC=31067466972	Overlay physical desktop acquisition end
+2026-10-03T06:17:27.5004373Z	QPC=31092157872	candidateConnectedComponents=0; thresholds are hypotheses, not automatic proof; stored premultiplied bytes preserved
+2026-10-03T06:17:27.5004373Z	QPC=31092159294	COLLECTION COMPLETE; not acceptance; browser/dynamic/multi-monitor/DPI/performance must be tested separately
+2026-10-03T06:17:27.5516497Z	QPC=31092671253	Clipboard restore attempted; delayed formats cannot be guaranteed preserved

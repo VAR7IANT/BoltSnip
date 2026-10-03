@@ -19,6 +19,7 @@ if ($PrepareOnly) { Write-Output "Prepared only: $probe"; return }
 # Requires an interactive desktop displaying the actual STATIC user symptom scene.
 # This invokes the real overlay and temporarily replaces the clipboard, then restores it.
 # ExpectedCommit is an operator assertion, not inferred executable provenance.
+if ([string]::IsNullOrWhiteSpace($ExpectedCommit)) { $ExpectedCommit = "unspecified" }
 $runDirectory = Join-Path $OutputDirectory ([Guid]::NewGuid().ToString('N'))
 & $probe ([IO.Path]::GetFullPath($ProductExe)) $runDirectory $ExpectedCommit $X $Y $Width $Height $SourceImage
 if ($LASTEXITCODE -ne 0) { throw "Diagnostic incomplete: $runDirectory" }
