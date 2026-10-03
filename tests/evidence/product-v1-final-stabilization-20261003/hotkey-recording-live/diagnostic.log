@@ -1,0 +1,18 @@
+﻿2026-10-03T05:56:55.6719561Z | Replay | Starting capture
+2026-10-03T05:56:55.6729546Z | Replay | Requested/default backend: DdaGrab
+2026-10-03T05:56:55.6789554Z | Replay | Audio pipe created
+2026-10-03T05:56:55.7761340Z | Replay | Audio endpoint: {0.0.0.00000000}.{88b28b8f-0897-4217-97c6-172056c1c861}
+2026-10-03T05:56:55.7841359Z | Replay | Audio mix format: 48000 Hz, 2 channels, 32-bit f32le
+2026-10-03T05:56:55.9172083Z | Replay | FFmpeg encoder command: -hide_banner -loglevel warning -nostats -y -f lavfi -i ddagrab=output_idx=0:framerate=60:draw_mouse=1 -thread_queue_size 512 -f f32le -ar 48000 -ac 2 -i \\.\pipe\BoltSnipReplayAudio-ce6269b007af44d6b695d4329ce6d0b2 -map 0:v:0 -map 1:a:0 -c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 -c:a aac -b:a 192k -ar 48000 -ac 2 -g 120 -forced-idr 1 -force_key_frames expr:gte(t,n_forced*2) -f segment -segment_time 2 -segment_time_delta 0.05 -reset_timestamps 1 -segment_list D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live\temp\BoltSnip\replay-cache\53a77be7c02541a890ca97329f6213c6\segments.csv -segment_list_type csv -segment_list_size 152 -segment_list_flags +live -segment_format mp4 -segment_format_options movflags=+faststart D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live\temp\BoltSnip\replay-cache\53a77be7c02541a890ca97329f6213c6\segment_%08d.mp4
+2026-10-03T05:56:55.9271185Z | Replay | Encoder started: NVENC H.264; backend=DdaGrab; input frames=D3D11; resolution=2560x1600; fps=60
+2026-10-03T05:56:55.9281198Z | Replay | AAC output enabled
+2026-10-03T05:56:56.3745069Z | Replay | Audio pipe connected
+2026-10-03T05:56:56.3755118Z | Replay | WASAPI loopback started
+2026-10-03T05:56:59.3949749Z | Replay | Capture started; buffer initialized
+2026-10-03T05:56:59.3999799Z | Replay | First encoded segment buffered
+2026-10-03T05:57:56.6918832Z | Replay | Stopping capture
+2026-10-03T05:57:56.8187950Z | Replay | Audio input samples written: duration=60.42s
+2026-10-03T05:57:56.8237951Z | Replay | Audio resources released
+2026-10-03T05:57:56.9155175Z | Replay | Encoder stopped
+2026-10-03T05:57:56.9275189Z | Replay | Capture resources released
+2026-10-03T05:57:56.9285186Z | Replay | Manager disposed

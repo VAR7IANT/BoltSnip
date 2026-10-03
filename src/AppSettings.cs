@@ -18,13 +18,24 @@ namespace BoltSnip
             "InstantShot",
             "settings.ini");
 
+        private readonly string _settingsPath;
+
         private AppSettings()
+            : this(SettingsPath)
         {
-            Hotkey = HotkeyGesture.Default;
+        }
+
+        private AppSettings(string settingsPath)
+        {
+            _settingsPath = settingsPath;
+            CaptureHotkey = HotkeyGesture.Default;
+            ReplaySaveHotkey = HotkeyGesture.ReplaySaveDefault;
             SaveDirectory = DefaultSaveDirectory;
         }
 
-        internal HotkeyGesture Hotkey { get; set; }
+        internal HotkeyGesture CaptureHotkey { get; set; }
+
+        internal HotkeyGesture ReplaySaveHotkey { get; set; }
 
         internal string SaveDirectory { get; set; }
 
@@ -40,12 +51,17 @@ namespace BoltSnip
 
         internal static AppSettings Load()
         {
-            AppSettings settings = new AppSettings();
+            return Load(SettingsPath, LegacySettingsPath);
+        }
+
+        internal static AppSettings Load(string settingsPath, string legacySettingsPath)
+        {
+            AppSettings settings = new AppSettings(settingsPath);
             try
             {
-                string path = File.Exists(SettingsPath)
-                    ? SettingsPath
-                    : LegacySettingsPath;
+                string path = File.Exists(settingsPath)
+                    ? settingsPath
+                    : legacySettingsPath;
                 if (!File.Exists(path))
                 {
                     return settings;
@@ -64,20 +80,23 @@ namespace BoltSnip
                     values[lines[index].Substring(0, separator).Trim()] = lines[index].Substring(separator + 1).Trim();
                 }
 
-                string modifiersText;
-                string keyText;
-                uint modifiers;
-                int key;
-                if (values.TryGetValue("Modifiers", out modifiersText) &&
-                    values.TryGetValue("Key", out keyText) &&
-                    uint.TryParse(modifiersText, NumberStyles.Integer, CultureInfo.InvariantCulture, out modifiers) &&
-                    int.TryParse(keyText, NumberStyles.Integer, CultureInfo.InvariantCulture, out key))
+                HotkeyGesture captureHotkey;
+                bool hasCaptureHotkey = TryReadGesture(values, "CaptureModifiers", "CaptureKey", out captureHotkey);
+                HotkeyGesture legacyCaptureHotkey;
+                bool hasLegacyCaptureHotkey = TryReadGesture(values, "Modifiers", "Key", out legacyCaptureHotkey);
+                if (hasCaptureHotkey)
                 {
-                    HotkeyGesture saved = new HotkeyGesture(modifiers, (Keys)key);
-                    if (saved.IsValid)
-                    {
-                        settings.Hotkey = saved;
-                    }
+                    settings.CaptureHotkey = captureHotkey;
+                }
+                else if (hasLegacyCaptureHotkey)
+                {
+                    settings.CaptureHotkey = legacyCaptureHotkey;
+                }
+
+                HotkeyGesture replaySaveHotkey;
+                if (TryReadGesture(values, "ReplaySaveModifiers", "ReplaySaveKey", out replaySaveHotkey))
+                {
+                    settings.ReplaySaveHotkey = replaySaveHotkey;
                 }
 
                 string saveDirectory;
@@ -87,9 +106,11 @@ namespace BoltSnip
                     settings.SaveDirectory = saveDirectory;
                 }
 
-                if (string.Equals(path, LegacySettingsPath, StringComparison.OrdinalIgnoreCase))
+                bool loadedLegacyPath = string.Equals(path, legacySettingsPath, StringComparison.OrdinalIgnoreCase);
+                bool loadedLegacyFormat = !hasCaptureHotkey && hasLegacyCaptureHotkey;
+                if (loadedLegacyPath || loadedLegacyFormat)
                 {
-                    settings.Save();
+                    settings.Save(settingsPath);
                 }
             }
             catch
@@ -102,15 +123,83 @@ namespace BoltSnip
 
         internal void Save()
         {
-            Directory.CreateDirectory(SettingsDirectory);
+            Save(_settingsPath);
+        }
+
+        internal void Save(string path)
+        {
+            if (!CaptureHotkey.IsValid || !ReplaySaveHotkey.IsValid)
+            {
+                throw new InvalidOperationException("快捷键设置无效，无法保存。");
+            }
+
+            string fullPath = Path.GetFullPath(path);
+            string directory = Path.GetDirectoryName(fullPath);
+            Directory.CreateDirectory(directory);
             string saveDirectory = IsUsableSaveDirectory(SaveDirectory)
                 ? SaveDirectory
                 : DefaultSaveDirectory;
             string contents =
-                "Modifiers=" + Hotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
-                "Key=" + ((int)Hotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                "CaptureModifiers=" + CaptureHotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                "CaptureKey=" + ((int)CaptureHotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                "ReplaySaveModifiers=" + ReplaySaveHotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                "ReplaySaveKey=" + ((int)ReplaySaveHotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
                 "SaveDirectory=" + saveDirectory + Environment.NewLine;
-            File.WriteAllText(SettingsPath, contents);
+
+            string temporaryPath = fullPath + ".tmp." + Guid.NewGuid().ToString("N");
+            try
+            {
+                File.WriteAllText(temporaryPath, contents, new System.Text.UTF8Encoding(false));
+                if (File.Exists(fullPath))
+                {
+                    File.Replace(temporaryPath, fullPath, null);
+                }
+                else
+                {
+                    try
+                    {
+                        File.Move(temporaryPath, fullPath);
+                    }
+                    catch (IOException)
+                    {
+                        if (!File.Exists(fullPath))
+                        {
+                            throw;
+                        }
+                        File.Replace(temporaryPath, fullPath, null);
+                    }
+                }
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+
+        private static bool TryReadGesture(
+            Dictionary<string, string> values,
+            string modifiersName,
+            string keyName,
+            out HotkeyGesture gesture)
+        {
+            gesture = default(HotkeyGesture);
+            string modifiersText;
+            string keyText;
+            uint modifiers;
+            int key;
+            if (!values.TryGetValue(modifiersName, out modifiersText) ||
+                !values.TryGetValue(keyName, out keyText) ||
+                !uint.TryParse(modifiersText, NumberStyles.Integer, CultureInfo.InvariantCulture, out modifiers) ||
+                !int.TryParse(keyText, NumberStyles.Integer, CultureInfo.InvariantCulture, out key))
+            {
+                return false;
+            }
+
+            gesture = new HotkeyGesture(modifiers, (Keys)key);
+            return gesture.IsValid;
         }
 
         private static bool IsUsableSaveDirectory(string path)

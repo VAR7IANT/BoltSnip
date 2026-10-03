@@ -21,6 +21,11 @@ namespace BoltSnip
             get { return new HotkeyGesture(NativeMethods.MOD_ALT, Keys.A); }
         }
 
+        internal static HotkeyGesture ReplaySaveDefault
+        {
+            get { return new HotkeyGesture(NativeMethods.MOD_ALT | NativeMethods.MOD_SHIFT, Keys.S); }
+        }
+
         internal string DisplayText
         {
             get

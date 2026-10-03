@@ -32,8 +32,8 @@ namespace BoltSnip
         internal static readonly Color SecondaryTextColor = Color.FromArgb(111, 126, 133);
         internal static readonly Color MutedTextColor = Color.FromArgb(151, 163, 168);
         internal static readonly Color BorderColor = Color.FromArgb(226, 233, 235);
-        internal static readonly Color AccentColor = Color.FromArgb(75, 145, 158);
-        internal static readonly Color AccentSoftColor = Color.FromArgb(232, 243, 245);
+        internal static readonly Color AccentColor = Color.FromArgb(37, 99, 235);
+        internal static readonly Color AccentSoftColor = Color.FromArgb(239, 246, 255);
         internal static readonly Color HoverColor = Color.FromArgb(241, 245, 246);
         internal static readonly Color PressedColor = Color.FromArgb(233, 239, 241);
         internal static readonly Color ErrorColor = Color.FromArgb(160, 97, 97);

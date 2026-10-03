@@ -1,0 +1,21 @@
+﻿2026-10-03T06:03:39.4095106Z | Replay | Starting capture
+2026-10-03T06:03:39.4125241Z | Replay | Requested/default backend: DdaGrab
+2026-10-03T06:03:39.4185226Z | Replay | Audio pipe created
+2026-10-03T06:03:39.5096411Z | Replay | Audio endpoint: {0.0.0.00000000}.{88b28b8f-0897-4217-97c6-172056c1c861}
+2026-10-03T06:03:39.5161055Z | Replay | Audio mix format: 48000 Hz, 2 channels, 32-bit f32le
+2026-10-03T06:03:39.6306245Z | Replay | FFmpeg encoder command: -hide_banner -loglevel warning -nostats -y -f lavfi -i ddagrab=output_idx=0:framerate=60:draw_mouse=1 -thread_queue_size 512 -f f32le -ar 48000 -ac 2 -i \\.\pipe\BoltSnipReplayAudio-8864fdc59f854f0c9f0f2cac9cf223c3 -map 0:v:0 -map 1:a:0 -c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 -c:a aac -b:a 192k -ar 48000 -ac 2 -g 120 -forced-idr 1 -force_key_frames expr:gte(t,n_forced*2) -f segment -segment_time 2 -segment_time_delta 0.05 -reset_timestamps 1 -segment_list D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live-retry\temp\BoltSnip\replay-cache\5011ae24921447e3bd638f09ec7c9a9e\segments.csv -segment_list_type csv -segment_list_size 152 -segment_list_flags +live -segment_format mp4 -segment_format_options movflags=+faststart D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live-retry\temp\BoltSnip\replay-cache\5011ae24921447e3bd638f09ec7c9a9e\segment_%08d.mp4
+2026-10-03T06:03:39.6396236Z | Replay | Encoder started: NVENC H.264; backend=DdaGrab; input frames=D3D11; resolution=2560x1600; fps=60
+2026-10-03T06:03:39.6406256Z | Replay | AAC output enabled
+2026-10-03T06:03:39.9283687Z | Replay | Audio pipe connected
+2026-10-03T06:03:39.9313761Z | Replay | WASAPI loopback started
+2026-10-03T06:03:42.9829476Z | Replay | Capture started; buffer initialized
+2026-10-03T06:03:42.9859481Z | Replay | First encoded segment buffered
+2026-10-03T06:04:41.7143472Z | Replay | Replay save requested
+2026-10-03T06:04:42.1401080Z | Replay | FFmpeg replay save command: -hide_banner -loglevel error -nostats -y -f concat -safe 0 -i D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live-retry\temp\BoltSnip-Replay-bbe78525df4846eaaeda64b8c5be727a.ffconcat -map 0:v:0 -map 0:a:0? -c:v copy -c:a copy -movflags +faststart -f mp4 D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live-retry\replays\BoltSnip-Replay-20261003-140442.mp4.partial.mp4
+2026-10-03T06:04:42.9669986Z | Replay | Replay saved: D:\Codex\Work\BoltSnip-FinalStabilization\hotkey-recording-live-retry\replays\BoltSnip-Replay-20261003-140442.mp4; duration=62.0s; saveMs=828
+2026-10-03T06:04:43.0567980Z | Replay | Stopping capture
+2026-10-03T06:04:43.1915685Z | Replay | Audio input samples written: duration=63.23s
+2026-10-03T06:04:43.1965685Z | Replay | Audio resources released
+2026-10-03T06:04:43.2562481Z | Replay | Encoder stopped
+2026-10-03T06:04:43.2695491Z | Replay | Capture resources released
+2026-10-03T06:04:43.2711846Z | Replay | Manager disposed

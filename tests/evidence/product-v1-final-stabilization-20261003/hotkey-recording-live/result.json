@@ -1,0 +1,21 @@
+﻿{
+    "Executable":  "D:\\Codex\\Work\\BoltSnip-FinalStabilization\\integrated-candidate\\BoltSnip.exe",
+    "ExecutableSHA256":  "CA3F382BCE96FAE44F989C9B31D8163829F9B19FB6B834675906B0E80CB09106",
+    "BuildId":  "d16bd21e573befae37e15bcf8983c5325517b51c.dirty",
+    "Backend":  "ddagrab",
+    "Before":  null,
+    "AfterChange":  null,
+    "AfterSave":  null,
+    "OldGestureReleased":  null,
+    "NewGestureOccupied":  null,
+    "CallbackCalls":  0,
+    "SaveAccepted":  false,
+    "ActualWindowDpi":  null,
+    "DesktopScreenshot":  null,
+    "Failure":  "System.Management.Automation.MethodInvocationException: Exception calling \"Invoke\" with \"2\" argument(s): \"Object of type \u0027System.Management.Automation.PSObject\u0027 cannot be converted to type \u0027System.String\u0027.\" ---\u003e System.ArgumentException: Object of type \u0027System.Management.Automation.PSObject\u0027 cannot be converted to type \u0027System.String\u0027.\r\n   at System.RuntimeType.TryChangeType(Object value, Binder binder, CultureInfo culture, Boolean needsSpecialCast)\r\n   at System.Reflection.MethodBase.CheckArguments(Object[] parameters, Binder binder, BindingFlags invokeAttr, CultureInfo culture, Signature sig)\r\n   at System.Reflection.RuntimeMethodInfo.InvokeArgumentsCheck(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)\r\n   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)\r\n   at CallSite.Target(Closure , CallSite , Object , Object , Object[] )\r\n   --- End of inner exception stack trace ---\r\n   at System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   at System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   at System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+    "Passed":  false,
+    "KeyboardEvidence":  "RegisterHotKey ownership + synthetic WM_HOTKEY routing; no physical key press tested",
+    "AudioIdentityEvidence":  "Unique session pipe GUID in unchanged FFmpeg command + Active and nondecreasing input duration; local audio object is not exposed",
+    "StopCallEvidence":  "Settings source call chain contains no Stop; runtime samples require StopRequested=false; no method-entry instrumentation",
+    "VisualVerdict":  "Screenshot requires independent inspection; other system DPIs not tested"
+}

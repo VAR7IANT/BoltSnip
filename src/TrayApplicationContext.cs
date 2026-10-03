@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -23,7 +24,11 @@ namespace BoltSnip
             _overlay = new CaptureOverlay(delegate { return _settings.SaveDirectory; });
             _overlay.CaptureFinished += OverlayCaptureFinished;
             _replayManager = new ReplayManager();
-            _hotkey = new HotkeyWindow(BeginCapture, SaveReplayFromHotkey, _settings.Hotkey);
+            _hotkey = new HotkeyWindow(
+                BeginCapture,
+                SaveReplayFromHotkey,
+                _settings.CaptureHotkey,
+                _settings.ReplaySaveHotkey);
 
             _trayPopup = new TrayPopupForm(
                 BeginCapture,
@@ -36,8 +41,8 @@ namespace BoltSnip
                 ExitApplication);
             _trayPopup.UpdatePresentation(
                 ReleaseIdentity.Version,
-                _hotkey.ShortcutText,
-                _hotkey.ReplayShortcutText,
+                _hotkey.CaptureShortcutText,
+                _hotkey.ReplaySaveShortcutText,
                 StartupRegistration.IsEnabledForCurrentExecutable(),
                 LicenseManager.Enabled);
 
@@ -54,13 +59,22 @@ namespace BoltSnip
             _replayUiTimer.Tick += ReplayUiTimerTick;
             _replayUiTimer.Start();
 
-            if (_hotkey.ShortcutText == "托盘菜单")
+            List<string> unavailableHotkeys = new List<string>();
+            if (!_hotkey.CaptureIsRegistered)
             {
-                _trayIcon.ShowBalloonTip(3000, "BoltSnip", "快捷键被其他程序占用，请双击托盘图标截图。", ToolTipIcon.Warning);
+                unavailableHotkeys.Add("截图：" + _settings.CaptureHotkey.DisplayText);
             }
-            if (!_hotkey.IsReplayHotkeyRegistered)
+            if (!_hotkey.ReplaySaveIsRegistered)
             {
-                _trayIcon.ShowBalloonTip(3500, "即时回放快捷键不可用", "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。", ToolTipIcon.Warning);
+                unavailableHotkeys.Add("保存即时回放：" + _settings.ReplaySaveHotkey.DisplayText);
+            }
+            if (unavailableHotkeys.Count > 0)
+            {
+                _trayIcon.ShowBalloonTip(
+                    4000,
+                    "部分快捷键不可用",
+                    string.Join("；", unavailableHotkeys.ToArray()) + " 被其他程序占用，可在快捷键设置中更换。",
+                    ToolTipIcon.Warning);
             }
         }
 
@@ -71,65 +85,17 @@ namespace BoltSnip
                 return;
             }
 
-            _hotkey.Suspend();
-            bool changed = false;
+            _hotkey.SetCallbacksSuppressed(true);
             try
             {
-                HotkeyGesture displayedGesture = _hotkey.CurrentGesture;
-                while (true)
+                using (HotkeySettingsDialog dialog = new HotkeySettingsDialog(_settings, _hotkey))
                 {
-                    using (HotkeySettingsDialog dialog = new HotkeySettingsDialog(displayedGesture))
-                    {
-                        if (dialog.ShowDialog() != DialogResult.OK)
-                        {
-                            return;
-                        }
-
-                        string error;
-                        if (!_hotkey.TryChange(dialog.SelectedGesture, out error))
-                        {
-                            displayedGesture = dialog.SelectedGesture;
-                            MessageBox.Show(error, "无法使用这个快捷键", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            _hotkey.Suspend();
-                            continue;
-                        }
-
-                        changed = true;
-                        _settings.Hotkey = dialog.SelectedGesture;
-                        try
-                        {
-                            _settings.Save();
-                        }
-                        catch (Exception exception)
-                        {
-                            MessageBox.Show(
-                                "快捷键已经生效，但无法保存设置：" + exception.Message,
-                                "无法保存设置",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                        }
-                        break;
-                    }
+                    dialog.ShowDialog();
                 }
             }
             finally
             {
-                if (!changed && !_hotkey.IsRegistered)
-                {
-                    string resumeError;
-                    if (!_hotkey.Resume(out resumeError) || !_hotkey.IsReplayHotkeyRegistered)
-                    {
-                        if (string.IsNullOrWhiteSpace(resumeError))
-                        {
-                            resumeError = "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。";
-                        }
-                        _trayIcon.ShowBalloonTip(3000, "快捷键不可用", resumeError, ToolTipIcon.Warning);
-                    }
-                }
-                else if (changed && !_hotkey.IsReplayHotkeyRegistered)
-                {
-                    _trayIcon.ShowBalloonTip(3000, "即时回放快捷键不可用", "Alt+Shift+S 已被占用；仍可从托盘菜单保存即时回放。", ToolTipIcon.Warning);
-                }
+                _hotkey.SetCallbacksSuppressed(false);
                 UpdateShortcutLabels();
             }
         }
@@ -200,7 +166,9 @@ namespace BoltSnip
 
         private void UpdateShortcutLabels()
         {
-            _trayIcon.Text = "BoltSnip v" + ReleaseIdentity.Version + " · " + _hotkey.ShortcutText + " · " + _hotkey.ReplayShortcutText;
+            string tooltip = "BoltSnip v" + ReleaseIdentity.Version + " · 截图 " +
+                _hotkey.CaptureShortcutText + " · 回放 " + _hotkey.ReplaySaveShortcutText;
+            _trayIcon.Text = tooltip.Length > 63 ? tooltip.Substring(0, 60) + "..." : tooltip;
             UpdatePopupPresentation();
         }
 
@@ -208,8 +176,8 @@ namespace BoltSnip
         {
             _trayPopup.UpdatePresentation(
                 ReleaseIdentity.Version,
-                _hotkey.ShortcutText,
-                _hotkey.ReplayShortcutText,
+                _hotkey.CaptureShortcutText,
+                _hotkey.ReplaySaveShortcutText,
                 StartupRegistration.IsEnabledForCurrentExecutable(),
                 LicenseManager.Enabled);
         }
