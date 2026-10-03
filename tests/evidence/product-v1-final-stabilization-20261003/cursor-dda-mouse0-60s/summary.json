@@ -1,0 +1,32 @@
+﻿{
+    "Failure":  null,
+    "Samples":  4422,
+    "CursorApiErrors":  0,
+    "VisibilityTransitions":  0,
+    "ObserverFailure":  null,
+    "OwnedEncoderPIDs":  [
+                             7880
+                         ],
+    "RemainingObservedPIDs":  [
+
+                              ],
+    "ActualEncoderCommands":  [
+                                  "2026-10-03T06:00:20.6562622Z | Replay | FFmpeg encoder command: -hide_banner -loglevel warning -nostats -y -f lavfi -i ddagrab=output_idx=0:framerate=60:draw_mouse=0 -thread_queue_size 512 -f f32le -ar 48000 -ac 2 -i \\\\.\\pipe\\BoltSnipReplayAudio-aa8e29b7ff844a72a45b88fbb3d39228 -map 0:v:0 -map 1:a:0 -c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 -c:a aac -b:a 192k -ar 48000 -ac 2 -g 120 -forced-idr 1 -force_key_frames expr:gte(t,n_forced*2) -f segment -segment_time 2 -segment_time_delta 0.05 -reset_timestamps 1 -segment_list D:\\Codex\\Work\\BoltSnip-FinalStabilization\\cursor-dda-mouse0-60s\\temp\\BoltSnip\\replay-cache\\6382907fefa745ce85bd317b7687dd62\\segments.csv -segment_list_type csv -segment_list_size 152 -segment_list_flags +live -segment_format mp4 -segment_format_options movflags=+faststart D:\\Codex\\Work\\BoltSnip-FinalStabilization\\cursor-dda-mouse0-60s\\temp\\BoltSnip\\replay-cache\\6382907fefa745ce85bd317b7687dd62\\segment_%08d.mp4",
+                                  "2026-10-03T06:00:20.6702936Z | Replay | Encoder started: NVENC H.264; backend=DdaGrab; input frames=D3D11; resolution=2560x1600; fps=60"
+                              ],
+    "HumanVisibleFlicker":  "UNVERIFIED",
+    "ReplayCursorQuality":  "UNVERIFIED",
+    "MediaAndAVAcceptance":  "NOT_RUN",
+    "Note":  "Transition count spans baseline, startup, recording and stop; use QPC lifecycle data to classify windows.",
+    "RecordingInterval":  {
+                              "StartQpc":  20858729946,
+                              "EndQpc":  21458996420,
+                              "DurationSeconds":  60.0266474,
+                              "Samples":  3890,
+                              "VisibleSamples":  3890,
+                              "CursorApiErrors":  0,
+                              "VisibilityTransitions":  0,
+                              "RecordingAtAllSnapshots":  true,
+                              "AudioActiveAtAllSnapshots":  true
+                          }
+}

@@ -1,0 +1,25 @@
+﻿{
+    "Executable":  "D:\\Codex\\Projects\\BoltSnip-Source-replay-mouse-flicker\\bin\\BoltSnip.exe",
+    "ExecutableSHA256":  "F09C4CF31F69E6600CC1CCA3A82A4E056F9BB996511E4BACA8E4F01C1D2E0595",
+    "BuildId":  "fb4bdc8f5523",
+    "BuildTimeUtc":  "2026-10-02T17:49:09.4844514Z",
+    "FfmpegPath":  "D:\\Codex\\Projects\\BoltSnip-Source\\bin\\ffmpeg.exe",
+    "FfmpegSHA256":  "C7364C2FB2F7ED2E944C1E5B76ACB8C0869BE942C17143756BCAC952C66C07C5",
+    "RequestedBackend":  "ddagrab",
+    "DurationSeconds":  60,
+    "QpcFrequency":  10000000,
+    "DpiAwareness":  2,
+    "PrimaryBounds":  {
+                          "Y":  0,
+                          "Width":  2560,
+                          "Height":  1600,
+                          "X":  0
+                      },
+    "NativePrimaryWidth":  2560,
+    "NativePrimaryHeight":  1600,
+    "HostPID":  38644,
+    "CursorSamplingPeriodRequestedMs":  5,
+    "PhysicalVisualFlickerVerdict":  "NOT_OBSERVED_BY_HARNESS",
+    "BuildCommitNote":  "BuildId is embedded metadata; full Git SHA is not inferred.",
+    "ExpectedGitShaSuppliedByRunner":  "fb4bdc8f552391165966b5334db6a938da685fd5"
+}

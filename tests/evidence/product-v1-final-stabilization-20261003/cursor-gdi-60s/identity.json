@@ -1,0 +1,25 @@
+﻿{
+    "Executable":  "D:\\Codex\\Work\\BoltSnip-FinalStabilization\\diagnostic-build\\BoltSnip.exe",
+    "ExecutableSHA256":  "A90936C95EF47BADC7F6A74B65449A6027E380A083D66F6A73C5090BF6D7B81A",
+    "BuildId":  "d16bd21e573befae37e15bcf8983c5325517b51c",
+    "BuildTimeUtc":  "2026-10-03T05:50:04.0418496Z",
+    "FfmpegPath":  "D:\\Codex\\Projects\\BoltSnip-Source\\bin\\ffmpeg.exe",
+    "FfmpegSHA256":  "C7364C2FB2F7ED2E944C1E5B76ACB8C0869BE942C17143756BCAC952C66C07C5",
+    "RequestedBackend":  "gdigrab",
+    "DurationSeconds":  60,
+    "QpcFrequency":  10000000,
+    "DpiAwareness":  2,
+    "PrimaryBounds":  {
+                          "Y":  0,
+                          "Width":  2560,
+                          "Height":  1600,
+                          "X":  0
+                      },
+    "NativePrimaryWidth":  2560,
+    "NativePrimaryHeight":  1600,
+    "HostPID":  15256,
+    "CursorSamplingPeriodRequestedMs":  5,
+    "PhysicalVisualFlickerVerdict":  "NOT_OBSERVED_BY_HARNESS",
+    "BuildCommitNote":  "BuildId is embedded metadata; full Git SHA is not inferred.",
+    "ExpectedGitShaSuppliedByRunner":  ""
+}

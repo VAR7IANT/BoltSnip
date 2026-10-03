@@ -1,0 +1,17 @@
+﻿2026-10-03T05:51:05.6723831Z | Replay | Starting capture
+2026-10-03T05:51:05.6743842Z | Replay | Requested/default backend: DdaGrab
+2026-10-03T05:51:05.6830194Z | Replay | Audio pipe created
+2026-10-03T05:51:05.8149706Z | Replay | Audio endpoint: {0.0.0.00000000}.{88b28b8f-0897-4217-97c6-172056c1c861}
+2026-10-03T05:51:05.8240704Z | Replay | Audio mix format: 48000 Hz, 2 channels, 32-bit f32le
+2026-10-03T05:51:07.8176213Z | Replay | FFmpeg encoder command: -hide_banner -loglevel warning -nostats -y -f lavfi -i ddagrab=output_idx=0:framerate=60:draw_mouse=1 -thread_queue_size 512 -f f32le -ar 48000 -ac 2 -i \\.\pipe\BoltSnipReplayAudio-67ba77841cbd4acf926b8011f40751be -map 0:v:0 -map 1:a:0 -c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 23 -b:v 0 -c:a aac -b:a 192k -ar 48000 -ac 2 -g 120 -forced-idr 1 -force_key_frames expr:gte(t,n_forced*2) -f segment -segment_time 2 -segment_time_delta 0.05 -reset_timestamps 1 -segment_list C:\Users\VAR7IANT\AppData\Local\Temp\BoltSnip\replay-cache\44d56dbf5147405796e527dbc0a3c749\segments.csv -segment_list_type csv -segment_list_size 152 -segment_list_flags +live -segment_format mp4 -segment_format_options movflags=+faststart C:\Users\VAR7IANT\AppData\Local\Temp\BoltSnip\replay-cache\44d56dbf5147405796e527dbc0a3c749\segment_%08d.mp4
+2026-10-03T05:51:07.8321794Z | Replay | Encoder started: NVENC H.264; backend=DdaGrab; input frames=D3D11; resolution=2560x1600; fps=60
+2026-10-03T05:51:07.8331847Z | Replay | AAC output enabled
+2026-10-03T05:51:08.2020494Z | Replay | Audio pipe connected
+2026-10-03T05:51:08.2043752Z | Replay | WASAPI loopback started
+2026-10-03T05:51:11.2218885Z | Replay | Capture started; buffer initialized
+2026-10-03T05:51:11.2269529Z | Replay | First encoded segment buffered
+2026-10-03T05:52:11.3154638Z | Replay | Stopping capture
+2026-10-03T05:52:11.3349438Z | Replay | Audio input samples written: duration=63.11s
+2026-10-03T05:52:11.3389340Z | Replay | Audio resources released
+2026-10-03T05:52:11.4406205Z | Replay | Encoder stopped
+2026-10-03T05:52:11.4580742Z | Replay | Capture resources released
