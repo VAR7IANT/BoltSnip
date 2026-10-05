@@ -17,8 +17,8 @@ namespace BoltSnip {
                 foreach (int dpi in new int[] { 96, 144, 192 }) {
                     float scale = dpi / 96F;
                     type.GetField("_scale", flags).SetValue(toast, scale);
-                    type.GetField("_message", flags).SetValue(toast, "BoltSnip-Replay-20261006-001500.mp4 · 300 秒");
-                    toast.ClientSize = new Size((int)(344 * scale), (int)(76 * scale));
+                    type.GetField("_message", flags).SetValue(toast, "300 秒 · BoltSnip-Replay-20261006-001500.mp4");
+                    toast.ClientSize = new Size((int)(352 * scale), (int)(92 * scale));
                     using (Bitmap preview = new Bitmap(toast.Width, toast.Height)) {
                         toast.DrawToBitmap(preview, new Rectangle(Point.Empty, preview.Size));
                         preview.Save(Path.Combine(args[0], "saved-toast-" + dpi + ".png"), ImageFormat.Png);

@@ -87,13 +87,14 @@ namespace BoltSnip
             string outputPattern = Path.Combine(cacheDirectory, "segment_%08d.mp4");
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.FileName = ffmpegPath;
-            startInfo.Arguments = BuildArguments(
+            string microphoneInputArguments = audioSession == null || audioSession.Microphone == null ? null : ReplayAudioCaptureSession.BuildInputArguments(audioSession.Microphone.Format, audioSession.Microphone.PipeArgument);
+            startInfo.Arguments = BuildArgumentsCore(
                 listPath,
                 outputPattern,
                 videoInputArguments,
                 audioInputArguments,
                 audioSession == null ? null : audioSession.Format,
-                settings);
+                settings, microphoneInputArguments);
             ReplayDiagnostics.Write("FFmpeg encoder command: " + startInfo.Arguments);
             startInfo.UseShellExecute = false;
             startInfo.CreateNoWindow = true;
@@ -256,13 +257,18 @@ namespace BoltSnip
             Stop();
         }
 
-        internal static string BuildArguments(
+        internal static string BuildArguments(string listPath, string outputPattern, string videoInputArguments, string audioInputArguments, ReplayAudioFormat audioFormat, ReplaySettings settings)
+        {
+            return BuildArgumentsCore(listPath, outputPattern, videoInputArguments, audioInputArguments, audioFormat, settings, null);
+        }
+
+        internal static string BuildArgumentsCore(
             string listPath,
             string outputPattern,
             string videoInputArguments,
             string audioInputArguments,
             ReplayAudioFormat audioFormat,
-            ReplaySettings settings)
+            ReplaySettings settings, string microphoneInputArguments)
         {
             int gop = settings.target_fps * settings.segment_duration_seconds;
             StringBuilder arguments = new StringBuilder();
@@ -272,7 +278,13 @@ namespace BoltSnip
             if (includeAudio)
             {
                 arguments.Append(audioInputArguments);
-                arguments.Append("-map 0:v:0 -map 1:a:0 ");
+                if (!string.IsNullOrWhiteSpace(microphoneInputArguments))
+                {
+                    arguments.Append(microphoneInputArguments);
+                    string mix = "[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[game];[2:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=" + settings.microphone_gain.ToString(CultureInfo.InvariantCulture) + "[mic];[game][mic]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95:level=0:latency=1[audio]";
+                    arguments.Append("-filter_complex ").Append(ReplayProcessSupport.QuoteArgument(mix)).Append(" -map 0:v:0 -map ").Append(ReplayProcessSupport.QuoteArgument("[audio]")).Append(' ');
+                }
+                else { arguments.Append("-map 0:v:0 -map 1:a:0 "); }
             }
             else
             {

@@ -66,6 +66,9 @@ namespace BoltSnip
         internal readonly int target_fps;
         internal readonly int segment_duration_seconds;
         internal readonly bool capture_system_audio;
+        internal readonly bool capture_microphone;
+        internal readonly string microphone_device_id;
+        internal readonly double microphone_gain = 1;
         internal readonly ReplayCaptureBackend capture_backend;
 
         internal int segment_list_size
@@ -91,6 +94,10 @@ namespace BoltSnip
                 ReplayCaptureBackendPolicy.FromEnvironment(
                     Environment.GetEnvironmentVariable(ReplayCaptureBackendPolicy.EnvironmentVariable)))
         {
+            AppSettings audioSettings = AppSettings.Load();
+            capture_microphone = audioSettings.RecordMicrophone;
+            microphone_device_id = audioSettings.MicrophoneDeviceId;
+            microphone_gain = audioSettings.MicrophoneVolume / 100.0;
         }
 
         internal ReplaySettings(TimeSpan bufferDuration, int targetFps, int segmentDurationSeconds)

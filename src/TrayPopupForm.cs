@@ -14,6 +14,7 @@ namespace BoltSnip
         ReplaySave,
         Hotkeys,
         SaveLocation,
+        AudioSettings,
         Startup,
         License,
         Exit
@@ -22,8 +23,8 @@ namespace BoltSnip
     internal sealed class TrayPopupForm : Form
     {
         internal const int LogicalWidth = 336;
-        internal const int LogicalHeight = 430;
-        internal const int LogicalHeightWithLicense = 464;
+        internal const int LogicalHeight = 464;
+        internal const int LogicalHeightWithLicense = 498;
         internal const int ReplayTitleLogicalWidth = 158;
 
         internal static readonly Color BackgroundColor = Color.FromArgb(250, 251, 252);
@@ -45,6 +46,8 @@ namespace BoltSnip
         private readonly Action _toggleReplay;
         private readonly Action _saveReplay;
         private readonly Action _openHotkeys;
+        internal Action OpenAudioSettings { get; set; }
+        private ReplayAudioState _microphoneState;
         private readonly Action _openSaveLocation;
         private readonly Action _toggleStartup;
         private readonly Action _openLicense;
@@ -226,14 +229,16 @@ namespace BoltSnip
                     return new Rectangle(14, 268, 308, 32);
                 case TrayPopupAction.SaveLocation:
                     return new Rectangle(14, 302, 308, 32);
-                case TrayPopupAction.Startup:
+                case TrayPopupAction.AudioSettings:
                     return new Rectangle(14, 336, 308, 32);
+                case TrayPopupAction.Startup:
+                    return new Rectangle(14, 370, 308, 32);
                 case TrayPopupAction.License:
-                    return licenseEnabled ? new Rectangle(14, 370, 308, 32) : Rectangle.Empty;
+                    return licenseEnabled ? new Rectangle(14, 404, 308, 32) : Rectangle.Empty;
                 case TrayPopupAction.Exit:
                     return licenseEnabled
-                        ? new Rectangle(14, 418, 308, 32)
-                        : new Rectangle(14, 384, 308, 32);
+                        ? new Rectangle(14, 452, 308, 32)
+                        : new Rectangle(14, 418, 308, 32);
                 default:
                     return Rectangle.Empty;
             }
@@ -588,6 +593,8 @@ namespace BoltSnip
             {
                 if (_replayAudioState == ReplayAudioState.Active)
                 {
+                    if (_microphoneState == ReplayAudioState.Active) return "正在缓存 · 系统声音 + 麦克风";
+                    if (_microphoneState == ReplayAudioState.Unavailable) return "正在缓存 · 麦克风不可用";
                     return "正在缓存最近 5 分钟 · 系统声音";
                 }
                 if (_replayAudioState == ReplayAudioState.Unavailable)
@@ -607,12 +614,29 @@ namespace BoltSnip
             return "点击开关启用即时回放";
         }
 
+        internal void UpdateMicrophoneState(ReplayAudioState state)
+        {
+            if (_microphoneState != state) { _microphoneState = state; Invalidate(); }
+        }
+
+        private void DrawMicrophoneIcon(Graphics graphics, int x, int y, int size)
+        {
+            using (Pen pen = new Pen(SecondaryTextColor, Math.Max(1, size / 10F)))
+            {
+                graphics.DrawEllipse(pen, x + size * 0.32F, y, size * 0.36F, size * 0.58F);
+                graphics.DrawArc(pen, x + size * 0.16F, y + size * 0.25F, size * 0.68F, size * 0.5F, 0, 180);
+                graphics.DrawLine(pen, x + size * 0.5F, y + size * 0.75F, x + size * 0.5F, y + size);
+                graphics.DrawLine(pen, x + size * 0.3F, y + size, x + size * 0.7F, y + size);
+            }
+        }
+
         private void DrawSettings(Graphics graphics)
         {
             Rectangle heading = ScaleRectangle(new Rectangle(16, 246, 280, 18));
             DrawText(graphics, "设置", _smallFont, SecondaryTextColor, heading, StringAlignment.Near);
             DrawSettingRow(graphics, TrayPopupAction.Hotkeys, "快捷键", DrawKeyboardIcon);
             DrawSettingRow(graphics, TrayPopupAction.SaveLocation, "保存位置", DrawFolderIcon);
+            DrawSettingRow(graphics, TrayPopupAction.AudioSettings, "录制声音", DrawMicrophoneIcon);
             DrawSettingRow(graphics, TrayPopupAction.Startup, "开机启动", DrawPowerIcon);
             if (_licenseEnabled)
             {
@@ -856,6 +880,7 @@ namespace BoltSnip
             {
                 return TrayPopupAction.SaveLocation;
             }
+            if (GetLogicalBounds(TrayPopupAction.AudioSettings, _licenseEnabled).Contains(logicalPoint)) return TrayPopupAction.AudioSettings;
             if (GetLogicalBounds(TrayPopupAction.Startup, _licenseEnabled).Contains(logicalPoint))
             {
                 return TrayPopupAction.Startup;
@@ -892,6 +917,10 @@ namespace BoltSnip
                 case TrayPopupAction.SaveLocation:
                     Hide();
                     if (_openSaveLocation != null) _openSaveLocation();
+                    break;
+                case TrayPopupAction.AudioSettings:
+                    Hide();
+                    if (OpenAudioSettings != null) OpenAudioSettings();
                     break;
                 case TrayPopupAction.Startup:
                     if (_toggleStartup != null) _toggleStartup();

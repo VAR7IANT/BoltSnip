@@ -132,6 +132,17 @@ namespace BoltSnip
         private readonly string _pipeName;
         private readonly string _pipeArgument;
         private readonly Thread _worker;
+        private readonly bool _isMicrophone;
+        private readonly string _selectedEndpoint;
+        private readonly ReplayAudioCaptureSession _primaryAudio;
+        private ReplayAudioCaptureSession _microphone;
+        private bool _microphoneRequested;
+        private long _firstPacketQpc;
+        private bool _microphoneAligned;
+        private long _microphoneTrimFrames;
+        internal void MarkMicrophoneUnavailable() { _microphoneRequested = true; }
+        internal ReplayAudioCaptureSession Microphone { get { return _microphone; } }
+        internal ReplayAudioState MicrophoneState { get { return _microphone == null ? (_microphoneRequested ? ReplayAudioState.Unavailable : ReplayAudioState.Disabled) : _microphone.State; } }
         private ReplayAudioFormat _format;
         private ReplayAudioState _state = ReplayAudioState.Starting;
         private Exception _preparationFailure;
@@ -152,8 +163,25 @@ namespace BoltSnip
         private long _lastAudioClockLogTimestamp;
         private bool _hasAudioClockPosition;
 
-        internal ReplayAudioCaptureSession()
+        internal static ReplayAudioCaptureSession Create(ReplaySettings settings)
         {
+            ReplayAudioCaptureSession session = new ReplayAudioCaptureSession();
+            if (settings.capture_microphone)
+            {
+                session._microphoneRequested = true;
+                try { session._microphone = new ReplayAudioCaptureSession(true, settings.microphone_device_id, session); }
+                catch (Exception error) { ReplayDiagnostics.Write("Microphone unavailable: " + error.Message); }
+            }
+            return session;
+        }
+
+        internal ReplayAudioCaptureSession() : this(false, null, null) { }
+
+        internal ReplayAudioCaptureSession(bool isMicrophone, string endpointId, ReplayAudioCaptureSession primaryAudio)
+        {
+            _isMicrophone = isMicrophone;
+            _selectedEndpoint = endpointId;
+            _primaryAudio = primaryAudio;
             _pipeName = "BoltSnipReplayAudio-" + Guid.NewGuid().ToString("N");
             _pipeArgument = @"\\.\pipe\" + _pipeName;
             _pipe = new NamedPipeServerStream(_pipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
@@ -242,7 +270,17 @@ namespace BoltSnip
             }
             if (failure != null)
             {
-                throw new InvalidOperationException("WASAPI loopback capture is unavailable: " + failure.Message, failure);
+                throw new InvalidOperationException("WASAPI audio capture is unavailable: " + failure.Message, failure);
+            }
+            if (_microphone != null)
+            {
+                try { _microphone.WaitUntilPrepared(timeoutMilliseconds); }
+                catch (Exception error)
+                {
+                    ReplayDiagnostics.Write("Microphone preparation failed; keeping system audio: " + error.Message);
+                    _microphone.Dispose();
+                    _microphone = null;
+                }
             }
         }
 
@@ -259,7 +297,27 @@ namespace BoltSnip
 
             try
             {
-                ConnectAndStartCore(timeoutMilliseconds);
+                Exception microphoneFailure = null;
+                Thread microphoneConnector = null;
+                ReplayAudioCaptureSession microphone = _microphone;
+                if (microphone != null)
+                {
+                    microphoneConnector = new Thread(delegate() { try { microphone.ConnectAndStart(timeoutMilliseconds); } catch (Exception error) { microphoneFailure = error; } });
+                    microphoneConnector.IsBackground = true;
+                    microphoneConnector.Name = "BoltSnip Microphone Connector";
+                    microphoneConnector.Start();
+                }
+                try { ConnectAndStartCore(timeoutMilliseconds); }
+                finally
+                {
+                    if (microphoneConnector != null && !microphoneConnector.Join(timeoutMilliseconds + 1000))
+                    {
+                        microphone.Stop();
+                        microphoneConnector.Join(2000);
+                        microphoneFailure = new TimeoutException("Microphone connection timed out.");
+                    }
+                }
+                if (microphoneFailure != null) { throw new InvalidOperationException("Microphone startup failed.", microphoneFailure); }
             }
             finally
             {
@@ -401,6 +459,7 @@ namespace BoltSnip
 
         internal void Stop()
         {
+            if (_microphone != null) { _microphone.Stop(); }
             lock (_syncRoot)
             {
                 if (!_sessionEventsDisposed)
@@ -420,6 +479,8 @@ namespace BoltSnip
                     }
                 }
             }
+            // A stopped microphone must signal EOF so the mixer can continue with system audio.
+            if (_isMicrophone) { DisposePipeSafely(); }
         }
 
         private void WaitForStartupSignal(WaitHandle signal, int timeoutMilliseconds, string timeoutMessage)
@@ -605,6 +666,7 @@ namespace BoltSnip
             }
 
             Stop();
+            if (_microphone != null) { _microphone.Dispose(); }
             DisposePipeSafely();
             lock (_syncRoot)
             {
@@ -650,7 +712,7 @@ namespace BoltSnip
 
                 Type enumeratorType = Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"), true);
                 enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType);
-                CheckHResult(enumerator.GetDefaultAudioEndpoint(AudioDataFlow.Render, AudioRole.Console, out device), "GetDefaultAudioEndpoint");
+                CheckHResult(GetEndpoint(enumerator, out device), "GetAudioEndpoint");
 
                 string endpointId;
                 CheckHResult(device.GetId(out endpointId), "IMMDevice.GetId");
@@ -673,7 +735,7 @@ namespace BoltSnip
 
                     int initializeResult = audioClient.Initialize(
                         AudioShareMode.Shared,
-                        AudioClientStreamFlags.Loopback,
+                        _isMicrophone ? (AudioClientStreamFlags)0 : AudioClientStreamFlags.Loopback,
                         AudioBufferDurationHns,
                         0,
                         mixFormatPointer,
@@ -711,7 +773,7 @@ namespace BoltSnip
                 {
                     _state = ReplayAudioState.Active;
                 }
-                ReplayDiagnostics.Write("WASAPI loopback started");
+                ReplayDiagnostics.Write(_isMicrophone ? "WASAPI microphone started" : "WASAPI loopback started");
                 _captureStartedEvent.Set();
 
                 try
@@ -804,7 +866,7 @@ namespace BoltSnip
                 long now = System.Diagnostics.Stopwatch.GetTimestamp();
                 if (now >= nextEndpointCheckTicks)
                 {
-                    string currentEndpointId = GetDefaultRenderEndpointId(enumerator);
+                    string currentEndpointId = GetCurrentEndpointId(enumerator);
                     if (!string.Equals(endpointId, currentEndpointId, StringComparison.OrdinalIgnoreCase))
                     {
                         string reason = "The default render endpoint changed; restart Instant Replay to capture system audio from the new endpoint.";
@@ -827,9 +889,32 @@ namespace BoltSnip
                         ulong devicePosition;
                         ulong qpcPosition;
                         CheckHResult(captureClient.GetBuffer(out data, out frames, out flags, out devicePosition, out qpcPosition), "IAudioCaptureClient.GetBuffer");
+                        Interlocked.CompareExchange(ref _firstPacketQpc, unchecked((long)qpcPosition), 0);
                         LogAudioClockPosition(devicePosition, qpcPosition);
+                        uint packetFrames = frames;
                         try
                         {
+                            if (_isMicrophone && !_microphoneAligned && _primaryAudio != null)
+                            {
+                                long origin = Interlocked.Read(ref _primaryAudio._firstPacketQpc);
+                                if (origin == 0) { origin = (long)(Stopwatch.GetTimestamp() * (10000000.0 / Stopwatch.Frequency)); }
+                                long signedOffset = unchecked((long)qpcPosition) - origin;
+                                long padding = Math.Max(0, signedOffset);
+                                _microphoneTrimFrames = Math.Max(0, -signedOffset) * format.SampleRate / 10000000L;
+                                if (Math.Abs(signedOffset) > 20000000L) throw new InvalidOperationException("Microphone startup offset exceeded the alignment limit; keeping system audio.");
+                                uint leadingFrames = (uint)(padding * format.SampleRate / 10000000L);
+                                uint chunk = (uint)Math.Max(1, format.SampleRate / 100);
+                                while (leadingFrames > 0 && !_stopEvent.WaitOne(0)) { uint count = Math.Min(chunk, leadingFrames); WriteSilence(format, count, silence); leadingFrames -= count; }
+                                _microphoneAligned = true;
+                                ReplayDiagnostics.Write("Microphone aligned to system audio QPC; offsetMs=" + (signedOffset / 10000.0).ToString("F2", CultureInfo.InvariantCulture));
+                            }
+                            if (_isMicrophone && _microphoneTrimFrames > 0)
+                            {
+                                uint skipped = (uint)Math.Min(_microphoneTrimFrames, frames);
+                                _microphoneTrimFrames -= skipped;
+                                frames -= skipped;
+                                if (data != IntPtr.Zero) data = IntPtr.Add(data, checked((int)skipped * format.Channels * (format.BitsPerSample / 8)));
+                            }
                             if ((flags & AudioClientBufferFlagSilent) != 0)
                             {
                                 WriteSilence(format, frames, silence);
@@ -841,7 +926,7 @@ namespace BoltSnip
                         }
                         finally
                         {
-                            CheckHResult(captureClient.ReleaseBuffer(frames), "IAudioCaptureClient.ReleaseBuffer");
+                            CheckHResult(captureClient.ReleaseBuffer(packetFrames), "IAudioCaptureClient.ReleaseBuffer");
                         }
 
                         silenceDeadline = System.Diagnostics.Stopwatch.GetTimestamp() + intervalTicks * 2;
@@ -866,13 +951,19 @@ namespace BoltSnip
             }
         }
 
-        private static string GetDefaultRenderEndpointId(IMMDeviceEnumerator enumerator)
+        private int GetEndpoint(IMMDeviceEnumerator enumerator, out IMMDevice device)
+        {
+            if (_isMicrophone && !string.IsNullOrWhiteSpace(_selectedEndpoint)) return enumerator.GetDevice(_selectedEndpoint, out device);
+            return enumerator.GetDefaultAudioEndpoint(_isMicrophone ? AudioDataFlow.Capture : AudioDataFlow.Render, _isMicrophone ? AudioRole.Communications : AudioRole.Console, out device);
+        }
+
+        private string GetCurrentEndpointId(IMMDeviceEnumerator enumerator)
         {
             IMMDevice defaultDevice = null;
             try
             {
                 CheckHResult(
-                    enumerator.GetDefaultAudioEndpoint(AudioDataFlow.Render, AudioRole.Console, out defaultDevice),
+                    GetEndpoint(enumerator, out defaultDevice),
                     "GetDefaultAudioEndpoint(check)");
                 string endpointId;
                 CheckHResult(defaultDevice.GetId(out endpointId), "IMMDevice.GetId(check)");
@@ -949,7 +1040,7 @@ namespace BoltSnip
             double seconds = (_lastAudioQpcPosition - _firstAudioQpcPosition) / 10000000.0;
             double rate = frames / seconds;
             ReplayDiagnostics.Write(
-                "WASAPI device clock: frames=" + frames.ToString(CultureInfo.InvariantCulture) +
+                (_isMicrophone ? "Microphone WASAPI device clock: frames=" : "WASAPI device clock: frames=") + frames.ToString(CultureInfo.InvariantCulture) +
                 ", qpcDuration=" + seconds.ToString("F3", CultureInfo.InvariantCulture) + "s, observedRate=" +
                 rate.ToString("F2", CultureInfo.InvariantCulture) + " Hz");
         }

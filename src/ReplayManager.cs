@@ -12,9 +12,11 @@ namespace BoltSnip
 
         private readonly object _syncRoot = new object();
         private readonly ManualResetEvent _stopEvent = new ManualResetEvent(false);
-        private readonly ReplaySettings _settings;
+        private ReplaySettings _settings;
+        private readonly bool _loadUserAudioSettings;
         private readonly Queue<ReplayNotification> _notifications = new Queue<ReplayNotification>();
         private ReplayState _state = ReplayState.Disabled;
+        private ReplayAudioCaptureSession _audioSession;
         private ReplayEncoder _encoder;
         private ReplayBuffer _buffer;
         private ReplaySaver _saver;
@@ -32,6 +34,7 @@ namespace BoltSnip
         internal ReplayManager()
             : this(new ReplaySettings())
         {
+            _loadUserAudioSettings = true;
         }
 
         internal ReplayManager(ReplaySettings settings)
@@ -57,6 +60,8 @@ namespace BoltSnip
         {
             get { lock (_syncRoot) { return _lastError; } }
         }
+
+        internal ReplayAudioState MicrophoneState { get { ReplayAudioCaptureSession session = _audioSession; return session == null ? ReplayAudioState.Disabled : session.MicrophoneState; } }
 
         internal ReplayAudioState AudioState
         {
@@ -112,6 +117,7 @@ namespace BoltSnip
                 }
 
                 _stopEvent.Reset();
+                if (_loadUserAudioSettings) { _settings = new ReplaySettings(); }
                 _stopRequested = false;
                 _lastError = null;
                 _audioWorkerCpuSeconds = 0;
@@ -320,7 +326,8 @@ namespace BoltSnip
                 {
                     try
                     {
-                        audioSession = new ReplayAudioCaptureSession();
+                        audioSession = ReplayAudioCaptureSession.Create(_settings);
+                        _audioSession = audioSession;
                         audioSession.WaitUntilPrepared(5000);
                     }
                     catch (Exception exception)
@@ -373,7 +380,8 @@ namespace BoltSnip
                             {
                                 audioSession.Stop();
                                 audioSession.Dispose();
-                                audioSession = new ReplayAudioCaptureSession();
+                                audioSession = ReplayAudioCaptureSession.Create(_settings);
+                                _audioSession = audioSession;
                                 audioSession.WaitUntilPrepared(5000);
                             }
 
@@ -402,6 +410,27 @@ namespace BoltSnip
                         out backendFailure);
                 };
 
+                Action startWithOptionalMicrophone = delegate
+                {
+                    try { startWithCaptureBackendFallback(); }
+                    catch (Exception error)
+                    {
+                        if (audioSession == null || audioSession.Microphone == null || IsStopRequested()) throw;
+                        ReplayDiagnostics.Write("Microphone startup failed; retrying system audio only: " + error.Message);
+                        audioSession.Dispose();
+                        audioSession = new ReplayAudioCaptureSession();
+                        audioSession.MarkMicrophoneUnavailable();
+                        _audioSession = audioSession;
+                        audioSession.WaitUntilPrepared(5000);
+                        encoder.Dispose();
+                        buffer.Dispose();
+                        buffer = new ReplayBuffer(cacheDirectory, _settings.buffer_duration);
+                        encoder = new ReplayEncoder();
+                        lock (_syncRoot) { _encoder = encoder; _buffer = buffer; }
+                        startWithCaptureBackendFallback();
+                    }
+                };
+
                 if (audioSession == null)
                 {
                     startWithCaptureBackendFallback();
@@ -410,7 +439,7 @@ namespace BoltSnip
                 {
                     Exception audioStartFailure;
                     bool audioStarted = TryStartWithAudioAndFallback(
-                        startWithCaptureBackendFallback,
+                        startWithOptionalMicrophone,
                         IsStopRequested,
                         delegate
                         {
@@ -555,7 +584,8 @@ namespace BoltSnip
                                 {
                                     try
                                     {
-                                        audioSession = new ReplayAudioCaptureSession();
+                                        audioSession = ReplayAudioCaptureSession.Create(_settings);
+                                        _audioSession = audioSession;
                                         audioSession.WaitUntilPrepared(5000);
                                     }
                                     catch (OperationCanceledException)
@@ -589,12 +619,7 @@ namespace BoltSnip
                                 {
                                     Exception audioStartFailure;
                                     bool audioStarted = TryStartWithAudioAndFallback(
-                                        delegate
-                                        {
-                                            encoder.Start(cacheDirectory, _settings, captureSession, audioSession);
-                                            audioSession.ConnectAndStart(5000);
-                                            StabilizeEncoderStartup(encoder);
-                                        },
+                                        startWithOptionalMicrophone,
                                         IsStopRequested,
                                         delegate
                                         {
@@ -729,6 +754,7 @@ namespace BoltSnip
                     audioSession.Stop();
                     audioSession.Dispose();
                 }
+                _audioSession = null;
                 encoder.Stop();
                 encoder.Dispose();
                 if (buffer != null)

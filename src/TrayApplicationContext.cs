@@ -18,6 +18,7 @@ namespace BoltSnip
         private readonly Timer _replayUiTimer;
         private readonly Icon _applicationIcon;
         private bool _exiting;
+        private ActivationDialog _licenseDialog;
 
         internal TrayApplicationContext()
         {
@@ -41,6 +42,7 @@ namespace BoltSnip
                 ToggleStartup,
                 OpenLicenseSettings,
                 ExitApplication);
+            _trayPopup.OpenAudioSettings = OpenAudioSettings;
             _trayPopup.UpdatePresentation(
                 ReleaseIdentity.Version,
                 _hotkey.CaptureShortcutText,
@@ -102,6 +104,14 @@ namespace BoltSnip
             }
         }
 
+        private void OpenAudioSettings()
+        {
+            if (_overlay.IsCapturing) return;
+            _hotkey.SetCallbacksSuppressed(true);
+            try { using (AudioSettingsDialog dialog = new AudioSettingsDialog(_settings)) { dialog.ShowDialog(); } }
+            finally { _hotkey.SetCallbacksSuppressed(false); }
+        }
+
         private void OpenSaveDirectorySettings()
         {
             if (_overlay.IsCapturing)
@@ -142,12 +152,27 @@ namespace BoltSnip
 
         private void OpenLicenseSettings()
         {
-            using (ActivationDialog dialog = new ActivationDialog())
+            if (_overlay.IsCapturing) return;
+            if (_licenseDialog != null && !_licenseDialog.IsDisposed)
             {
-                dialog.ShowDialog();
+                _licenseDialog.Activate();
+                return;
+            }
+            _hotkey.SetCallbacksSuppressed(true);
+            try
+            {
+                using (ActivationDialog dialog = new ActivationDialog())
+                {
+                    _licenseDialog = dialog;
+                    dialog.ShowDialog();
+                }
+            }
+            finally
+            {
+                _licenseDialog = null;
+                _hotkey.SetCallbacksSuppressed(false);
             }
         }
-
         private void ToggleStartup()
         {
             bool enable = !StartupRegistration.IsEnabledForCurrentExecutable();
@@ -238,6 +263,7 @@ namespace BoltSnip
             ReplayState state = _replayManager.State;
             bool saving = _replayManager.IsSaving;
             _trayPopup.UpdateReplayState(state, saving, _replayManager.AudioState);
+            _trayPopup.UpdateMicrophoneState(_replayManager.MicrophoneState);
         }
 
         private void TrayIconMouseUp(object sender, MouseEventArgs e)

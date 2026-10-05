@@ -31,6 +31,8 @@ namespace BoltSnip
             CaptureHotkey = HotkeyGesture.Default;
             ReplaySaveHotkey = HotkeyGesture.ReplaySaveDefault;
             SaveDirectory = DefaultSaveDirectory;
+            MicrophoneDeviceId = string.Empty;
+            MicrophoneVolume = 100;
         }
 
         internal HotkeyGesture CaptureHotkey { get; set; }
@@ -38,6 +40,9 @@ namespace BoltSnip
         internal HotkeyGesture ReplaySaveHotkey { get; set; }
 
         internal string SaveDirectory { get; set; }
+        internal bool RecordMicrophone { get; set; }
+        internal string MicrophoneDeviceId { get; set; }
+        internal int MicrophoneVolume { get; set; }
 
         internal static string DefaultSaveDirectory
         {
@@ -106,6 +111,12 @@ namespace BoltSnip
                     settings.SaveDirectory = saveDirectory;
                 }
 
+                string microphoneValue;
+                bool microphoneEnabled;
+                int microphoneVolume;
+                if (values.TryGetValue("RecordMicrophone", out microphoneValue) && bool.TryParse(microphoneValue, out microphoneEnabled)) settings.RecordMicrophone = microphoneEnabled;
+                if (values.TryGetValue("MicrophoneDeviceId", out microphoneValue) && microphoneValue.IndexOfAny(new char[] { '\r', '\n' }) < 0) settings.MicrophoneDeviceId = microphoneValue;
+                if (values.TryGetValue("MicrophoneVolume", out microphoneValue) && int.TryParse(microphoneValue, out microphoneVolume)) settings.MicrophoneVolume = Math.Max(0, Math.Min(200, microphoneVolume));
                 bool loadedLegacyPath = string.Equals(path, legacySettingsPath, StringComparison.OrdinalIgnoreCase);
                 bool loadedLegacyFormat = !hasCaptureHotkey && hasLegacyCaptureHotkey;
                 if (loadedLegacyPath || loadedLegacyFormat)
@@ -144,7 +155,10 @@ namespace BoltSnip
                 "CaptureKey=" + ((int)CaptureHotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
                 "ReplaySaveModifiers=" + ReplaySaveHotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
                 "ReplaySaveKey=" + ((int)ReplaySaveHotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
-                "SaveDirectory=" + saveDirectory + Environment.NewLine;
+                "SaveDirectory=" + saveDirectory + Environment.NewLine +
+                "RecordMicrophone=" + RecordMicrophone.ToString() + Environment.NewLine +
+                "MicrophoneDeviceId=" + (MicrophoneDeviceId ?? string.Empty).Replace("\r", "").Replace("\n", "") + Environment.NewLine +
+                "MicrophoneVolume=" + Math.Max(0, Math.Min(200, MicrophoneVolume)).ToString(CultureInfo.InvariantCulture) + Environment.NewLine;
 
             string temporaryPath = fullPath + ".tmp." + Guid.NewGuid().ToString("N");
             try
