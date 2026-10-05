@@ -1,7 +1,8 @@
 param(
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist'),
     [string]$OwnerPublicKeyPath,
-    [string]$LicenseServerUrl
+    [string]$LicenseServerUrl,
+    [string]$FfmpegPath = $env:BOLTSNIP_FFMPEG_PATH
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,6 +10,13 @@ if ([string]::IsNullOrWhiteSpace($OwnerPublicKeyPath) -or
     [string]::IsNullOrWhiteSpace($LicenseServerUrl)) {
     throw 'Installer builds require -OwnerPublicKeyPath and -LicenseServerUrl.'
 }
+if ([string]::IsNullOrWhiteSpace($FfmpegPath)) {
+    $FfmpegPath = Join-Path $PSScriptRoot 'bin\ffmpeg.exe'
+}
+if (-not (Test-Path -LiteralPath $FfmpegPath -PathType Leaf)) {
+    throw 'Installer builds require -FfmpegPath pointing to a Windows FFmpeg build with NVIDIA NVENC and ddagrab support.'
+}
+$FfmpegPath = (Resolve-Path -LiteralPath $FfmpegPath).Path
 $identity = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'release.json') | ConvertFrom-Json
 $Version = [string]$identity.Version
 $ProductName = [string]$identity.ProductName
@@ -43,6 +51,7 @@ $arguments = @(
     ('/DAppVersion=' + $Version),
     ('/DProductName=' + $ProductName),
     ('/DSourceExecutable=' + $executable),
+    ('/DSourceFfmpeg=' + $FfmpegPath),
     ('/O' + $resolvedOutputDirectory),
     $installerScript
 )

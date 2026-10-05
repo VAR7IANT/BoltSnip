@@ -12,6 +12,7 @@ namespace BoltSnip
         private readonly HotkeyWindow _hotkey;
         private readonly NotifyIcon _trayIcon;
         private readonly TrayPopupForm _trayPopup;
+        private readonly ReplaySavedToast _replaySavedToast;
         private readonly AppSettings _settings;
         private readonly ReplayManager _replayManager;
         private readonly Timer _replayUiTimer;
@@ -20,6 +21,7 @@ namespace BoltSnip
 
         internal TrayApplicationContext()
         {
+            _replaySavedToast = new ReplaySavedToast();
             _settings = AppSettings.Load();
             _overlay = new CaptureOverlay(delegate { return _settings.SaveDirectory; });
             _overlay.CaptureFinished += OverlayCaptureFinished;
@@ -210,9 +212,13 @@ namespace BoltSnip
             ReplayNotification notification;
             while (_replayManager.TryDequeueNotification(out notification))
             {
-                if (notification.Title == "即时回放已保存")
+                if (notification.Kind == ReplayNotificationKind.SaveStarted) { continue; }
+                if (notification.Kind == ReplayNotificationKind.SaveSucceeded)
                 {
                     _trayPopup.ShowSavedFeedback();
+                    try { _replaySavedToast.ShowSaved(notification.Message); }
+                    catch (Exception exception) { ReplayDiagnostics.Write("Saved toast failed: " + exception.Message); }
+                    continue;
                 }
                 _trayIcon.ShowBalloonTip(
                     notification.IsError ? 4500 : 3000,
@@ -282,6 +288,7 @@ namespace BoltSnip
             _trayIcon.ContextMenuStrip = null;
             _trayIcon.Dispose();
             _trayPopup.Dispose();
+            _replaySavedToast.Dispose();
             if (_applicationIcon != null)
             {
                 _applicationIcon.Dispose();

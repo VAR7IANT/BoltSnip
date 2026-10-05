@@ -1,0 +1,8 @@
+FFmpeg is a separate executable used by BoltSnip Instant Replay.
+Copyright (c) 2000-2026 the FFmpeg developers and contributors.
+Bundled build: n9.0.2-3-ga5923073bf-20260924, win64 GPLv3 build.
+License: GNU General Public License version 3 or later; see FFmpeg-LICENSE.txt.
+Upstream project and source: https://ffmpeg.org/
+Corresponding FFmpeg revision: https://github.com/FFmpeg/FFmpeg/tree/a5923073bf
+Binary distributor and build scripts/dependency sources: https://github.com/BtbN/FFmpeg-Builds
+Build configuration is available by running ffmpeg.exe -version.

@@ -10,15 +10,19 @@
   #define SourceExecutable "..\bin\BoltSnip.exe"
 #endif
 
+#ifndef SourceFfmpeg
+  #error SourceFfmpeg must be supplied by build-installer.ps1
+#endif
+
 [Setup]
 AppId={{A2E4C85C-1652-4E6F-9B6F-F1EAC7AF8844}
 AppName={#ProductName}
 AppVersion={#AppVersion}
 AppVerName={#ProductName} {#AppVersion}
 AppPublisher=VAR7IANT
-AppPublisherURL=https://github.com/VAR7IANT/BoltSnip
-AppSupportURL=https://github.com/VAR7IANT/BoltSnip/issues
-AppUpdatesURL=https://github.com/VAR7IANT/BoltSnip/releases
+AppPublisherURL=https://github.com/VAR7IANT/BoltSnip-Source
+AppSupportURL=https://github.com/VAR7IANT/BoltSnip-Source/issues
+AppUpdatesURL=https://github.com/VAR7IANT/BoltSnip-Source/releases
 AppMutex=Local\BoltSnip.SingleInstance
 DefaultDirName={localappdata}\Programs\BoltSnip
 DefaultGroupName=BoltSnip
@@ -29,7 +33,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
 OutputBaseFilename={#ProductName}-Setup-{#AppVersion}-win-x64
-SetupIconFile=..\bin\app-icon.ico
+SetupIconFile={#ExtractFilePath(SourceExecutable)}app-icon.ico
 UninstallDisplayIcon={app}\BoltSnip.exe
 Compression=lzma2/max
 SolidCompression=yes
@@ -51,6 +55,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SourceExecutable}"; DestDir: "{app}"; DestName: "BoltSnip.exe"; Flags: ignoreversion
+
+Source: "{#SourceFfmpeg}"; DestDir: "{app}"; DestName: "ffmpeg.exe"; Flags: ignoreversion
+Source: "third-party\FFmpeg-LICENSE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "third-party\FFmpeg-NOTICE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir: "{app}"

@@ -204,7 +204,7 @@ namespace BoltSnip
                 _savingThread.IsBackground = true;
                 _savingThread.Name = "BoltSnip Replay Saver";
                 _savingThread.Start();
-                EnqueueNotification("即时回放", "正在保存最近可用的回放…", false);
+                EnqueueNotification("即时回放", "正在保存最近可用的回放…", false, ReplayNotificationKind.SaveStarted);
             }
 
             ReplayDiagnostics.Write("Replay save requested");
@@ -799,7 +799,7 @@ namespace BoltSnip
                         EnqueueNotification(
                             "即时回放已保存",
                             Path.GetFileName(result.Path) + " · " + result.DurationSeconds.ToString("F0") + " 秒",
-                            false);
+                            false, ReplayNotificationKind.SaveSucceeded);
                     }
                 }
             }
@@ -1195,13 +1195,13 @@ namespace BoltSnip
             return message;
         }
 
-        private void EnqueueNotification(string title, string message, bool isError)
+        private void EnqueueNotification(string title, string message, bool isError, ReplayNotificationKind kind = ReplayNotificationKind.General)
         {
             if (message != null && message.Length > 220)
             {
                 message = message.Substring(0, 217) + "…";
             }
-            _notifications.Enqueue(new ReplayNotification(title, message, isError));
+            _notifications.Enqueue(new ReplayNotification(title, message, isError, kind));
             while (_notifications.Count > 12)
             {
                 _notifications.Dequeue();
@@ -1226,17 +1226,21 @@ namespace BoltSnip
         }
     }
 
+    internal enum ReplayNotificationKind { General, SaveStarted, SaveSucceeded }
+
     internal sealed class ReplayNotification
     {
-        internal ReplayNotification(string title, string message, bool isError)
+        internal ReplayNotification(string title, string message, bool isError, ReplayNotificationKind kind = ReplayNotificationKind.General)
         {
             Title = title;
             Message = message;
             IsError = isError;
+            Kind = kind;
         }
 
         internal string Title { get; private set; }
         internal string Message { get; private set; }
         internal bool IsError { get; private set; }
+        internal ReplayNotificationKind Kind { get; private set; }
     }
 }
