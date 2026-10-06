@@ -29,6 +29,8 @@ DefaultGroupName=BoltSnip
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 MinVersion=10.0
+; Owner-draw structure uses the default 32-bit Setup ABI; application remains x64.
+SetupArchitecture=x86
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
@@ -109,12 +111,18 @@ Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\BoltSnip.exe"; WorkingDir
 Filename: "{app}\BoltSnip.exe"; Description: "{cm:LaunchProgram,{#ProductName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+type
+  TLanguageDrawItem = record
+    ControlType, ControlId, ItemId, Action, State: Cardinal;
+    Window: HWND;
+    DC: HDC;
+    Bounds: TRect;
+    Data: NativeInt;
+  end;
 var
   LanguageForm: TSetupForm;
-  LanguageField, ChineseOption, EnglishOption: TBitmapButton;
-  LanguageMenu: TPanel;
-  ConfirmButton, CancelButton: TNewButton;
-  LanguageIndex, PendingLanguage: Integer;
+  LanguageCombo: TNewComboBox;
+  LanguageDrawCallback: NativeInt;
 
 function CreateRoundRectRgn(Left, Top, Right, Bottom, Width, Height: Integer): THandle;
   external 'CreateRoundRectRgn@gdi32.dll stdcall';
@@ -122,109 +130,93 @@ function SetWindowRgn(Wnd: HWND; Region: THandle; Redraw: Boolean): Integer;
   external 'SetWindowRgn@user32.dll stdcall';
 function GetCurrentProcessId: Cardinal;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
+function SetWindowSubclass(Wnd: HWND; Callback, Id, Data: NativeInt): Boolean;
+  external 'SetWindowSubclass@comctl32.dll stdcall';
+function RemoveWindowSubclass(Wnd: HWND; Callback, Id: NativeInt): Boolean;
+  external 'RemoveWindowSubclass@comctl32.dll stdcall';
+function DefSubclassProc(Wnd: HWND; Msg: LongWord; WParam, LParam: NativeInt): NativeInt;
+  external 'DefSubclassProc@comctl32.dll stdcall';
+procedure ReadDrawItem(var Item: TLanguageDrawItem; Source: NativeInt; Bytes: Cardinal);
+  external 'RtlMoveMemory@kernel32.dll stdcall';
+function NativeCreateBrush(Color: Cardinal): THandle;
+  external 'CreateSolidBrush@gdi32.dll stdcall';
+function NativeDeleteObject(Obj: THandle): Boolean;
+  external 'DeleteObject@gdi32.dll stdcall';
+function NativeFillRect(DC: HDC; var Bounds: TRect; Brush: THandle): Integer;
+  external 'FillRect@user32.dll stdcall';
+function NativeSetTextColor(DC: HDC; Color: Cardinal): Cardinal;
+  external 'SetTextColor@gdi32.dll stdcall';
+function NativeSetBkMode(DC: HDC; Mode: Integer): Integer;
+  external 'SetBkMode@gdi32.dll stdcall';
+function NativeDrawText(DC: HDC; Text: String; Count: Integer;
+  var Bounds: TRect; Format: Cardinal): Integer;
+  external 'DrawTextW@user32.dll stdcall';
+function NativeGetSysColor(Index: Integer): Cardinal;
+  external 'GetSysColor@user32.dll stdcall';
+function NativeInvalidateRect(Wnd: HWND; Bounds: NativeInt; Erase: Boolean): Boolean;
+  external 'InvalidateRect@user32.dll stdcall';
 
-procedure PaintLanguageButton(Button: TBitmapButton; const Text: String;
-  Selected, IsField: Boolean);
+function LanguageDrawProc(Wnd: HWND; Msg: LongWord;
+  WParam, LParam, Id, Data: NativeInt): NativeInt;
 var
-  Image: TBitmap;
-  Background, Fill, Border, Foreground: TColor;
-  Y, X: Integer;
+  Item: TLanguageDrawItem;
+  Bounds: TRect;
+  Brush: THandle;
+  Background, Foreground: Cardinal;
+  Caption: String;
+  Selected: Boolean;
 begin
-  if IsDarkInstallMode then begin
-    Background := $2B2B2B; Fill := $353535; Border := $595959; Foreground := $F2F2F2;
-    if Selected then begin Fill := $615135; Border := $A58869; end;
-  end else begin
-    Background := $FFFFFF; Fill := $FFFFFF; Border := $D0C7BF; Foreground := $282420;
-    if Selected then begin Fill := $F3EADD; Border := $B39874; end;
-  end;
-  Image := TBitmap.Create;
-  try
-    Image.Width := Button.Width;
-    Image.Height := Button.Height;
-    with Image.Canvas do begin
-      Brush.Color := Background;
-      Pen.Color := Background;
-      Rectangle(0, 0, Image.Width, Image.Height);
-      Brush.Color := Fill;
-      Pen.Color := Border;
-      RoundRect(0, 0, Image.Width, Image.Height, ScaleX(12), ScaleY(12));
-      Font.Assign(LanguageForm.Font);
-      Font.Color := Foreground;
-      Y := (Image.Height - TextHeight(Text)) div 2;
-      TextOut(ScaleX(14), Y, Text);
-      X := Image.Width - ScaleX(22);
-      Pen.Color := Foreground;
-      Pen.Width := ScaleX(1);
-      if IsField then begin
-        MoveTo(X - ScaleX(4), Image.Height div 2 - ScaleY(2));
-        LineTo(X, Image.Height div 2 + ScaleY(2));
-        LineTo(X + ScaleX(4), Image.Height div 2 - ScaleY(2));
-      end else if Selected then
-        TextOut(X - ScaleX(4), Y, '✓');
+  if (Msg = $002B) and (LParam <> 0) then begin
+    ReadDrawItem(Item, LParam, 48);
+    if (Item.ControlType = 3) and (Item.Window = LanguageCombo.Handle) and
+      (Item.ItemId < 2) then begin
+      Selected := ((Item.State and 1) <> 0) and LanguageCombo.DroppedDown;
+      if IsDarkInstallMode then begin
+        Background := $353535;
+        Foreground := $F2F2F2;
+        if Selected then Background := $615135;
+      end else begin
+        Background := NativeGetSysColor(5);
+        Foreground := NativeGetSysColor(8);
+        if Selected then begin
+          if Background = $FFFFFF then Background := $F3EADD
+          else begin
+            Background := NativeGetSysColor(13);
+            Foreground := NativeGetSysColor(14);
+          end;
+        end;
+      end;
+      Brush := NativeCreateBrush(Background);
+      try NativeFillRect(Item.DC, Item.Bounds, Brush);
+      finally NativeDeleteObject(Brush); end;
+      NativeSetTextColor(Item.DC, Foreground);
+      NativeSetBkMode(Item.DC, 1);
+      Caption := LanguageCombo.Items[Item.ItemId];
+      Bounds := Item.Bounds;
+      Bounds.Left := Bounds.Left + ScaleX(14);
+      Bounds.Right := Bounds.Right - ScaleX(30);
+      NativeDrawText(Item.DC, Caption, Length(Caption), Bounds, $0824);
+      if Selected then begin
+        Bounds := Item.Bounds;
+        Bounds.Left := Bounds.Right - ScaleX(24);
+        NativeDrawText(Item.DC, '✓', 1, Bounds, $0824);
+      end;
+      Result := 1;
+      Exit;
     end;
-    Button.Caption := Text;
-    Button.Bitmap := Image;
-  finally
-    Image.Free;
   end;
+  Result := DefSubclassProc(Wnd, Msg, WParam, LParam);
 end;
 
-procedure RefreshLanguageChoice;
+procedure UpdateLanguageDrawing(Sender: TObject);
 begin
-  if LanguageIndex = 0 then PaintLanguageButton(LanguageField, '简体中文', False, True)
-  else PaintLanguageButton(LanguageField, 'English', False, True);
-  PaintLanguageButton(ChineseOption, '简体中文', PendingLanguage = 0, False);
-  PaintLanguageButton(EnglishOption, 'English', PendingLanguage = 1, False);
-end;
-
-procedure SetLanguageMenuVisible(Visible: Boolean);
-begin
-  LanguageMenu.Visible := Visible;
-  if Visible then begin
-    PendingLanguage := LanguageIndex;
-    LanguageForm.ClientHeight := ScaleY(280);
-    ConfirmButton.Top := ScaleY(228);
-    CancelButton.Top := ConfirmButton.Top;
-  end else begin
-    LanguageForm.ClientHeight := ScaleY(190);
-    ConfirmButton.Top := ScaleY(138);
-    CancelButton.Top := ConfirmButton.Top;
-  end;
-  RefreshLanguageChoice;
-end;
-
-procedure OpenLanguageMenu(Sender: TObject);
-begin
-  SetLanguageMenuVisible(not LanguageMenu.Visible);
-end;
-
-procedure ChooseLanguage(Sender: TObject);
-begin
-  if Sender = ChineseOption then LanguageIndex := 0 else LanguageIndex := 1;
-  SetLanguageMenuVisible(False);
-  LanguageForm.ActiveControl := LanguageField;
-end;
-
-procedure LanguageKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-begin
-  if LanguageMenu.Visible then begin
-    if (Key = 38) or (Key = 40) then begin
-      PendingLanguage := 1 - PendingLanguage;
-      RefreshLanguageChoice;
-      Key := 0;
-    end else if Key = 13 then begin
-      LanguageIndex := PendingLanguage;
-      SetLanguageMenuVisible(False);
-      Key := 0;
-    end else if Key = 27 then begin
-      SetLanguageMenuVisible(False);
-      Key := 0;
-    end;
-  end else if (LanguageForm.ActiveControl = LanguageField) and
-    ((Key = 13) or (Key = 32) or (Key = 38) or (Key = 40)) then begin
-    SetLanguageMenuVisible(True);
-    Key := 0;
-  end;
+  if LanguageDrawCallback = 0 then Exit;
+  if not SetWindowSubclass(LanguageForm.Handle, LanguageDrawCallback, 1, 0) then
+    RaiseException('Could not initialize language selection.');
+  SetWindowRgn(LanguageCombo.Handle,
+    CreateRoundRectRgn(0, 0, LanguageCombo.Width + 1, LanguageCombo.Height + 1,
+      ScaleX(12), ScaleY(12)), True);
+  NativeInvalidateRect(LanguageCombo.Handle, 0, True);
 end;
 
 function QuoteSetupArgument(const Value: String): String;
@@ -238,8 +230,7 @@ begin
     else begin
       if Value[I] = '"' then
         Result := Result + StringOfChar('\', Slashes * 2 + 1) + '"'
-      else
-        Result := Result + StringOfChar('\', Slashes) + Value[I];
+      else Result := Result + StringOfChar('\', Slashes) + Value[I];
       Slashes := 0;
     end;
   end;
@@ -256,92 +247,68 @@ end;
 function InitializeSetup: Boolean;
 var
   LabelControl: TNewStaticText;
+  ConfirmButton, CancelButton: TNewButton;
   ChosenLanguage, Arguments, RelaunchCommand: String;
   ErrorCode, I: Integer;
 begin
   Result := True;
-  { Explicit /LANG and silent installs keep their native, single-process path. }
   if WizardSilent or (ExpandConstant('{param:LANG|}') <> '') then Exit;
-    LanguageForm := CreateCustomForm(ScaleX(400), ScaleY(190), True, True);
+  LanguageForm := CreateCustomForm(ScaleX(400), ScaleY(190), True, True);
   try
     LanguageForm.Caption := SetupMessage(msgSelectLanguageTitle);
-    if ActiveLanguage = 'chinesesimplified' then
-      LanguageForm.Font.Name := 'Microsoft YaHei UI'
-    else
-      LanguageForm.Font.Name := 'Segoe UI';
+    if ActiveLanguage = 'chinesesimplified' then LanguageForm.Font.Name := 'Microsoft YaHei UI'
+    else LanguageForm.Font.Name := 'Segoe UI';
     LanguageForm.Font.Size := 10;
     LanguageForm.ClientWidth := ScaleX(400);
     LanguageForm.ClientHeight := ScaleY(190);
-
     LabelControl := TNewStaticText.Create(LanguageForm);
     LabelControl.Parent := LanguageForm;
     LabelControl.SetBounds(ScaleX(24), ScaleY(24), ScaleX(352), ScaleY(24));
     LabelControl.Caption := SetupMessage(msgSelectLanguageLabel);
+    LabelControl.FocusControl := LanguageCombo;
 
-    LanguageField := TBitmapButton.Create(LanguageForm);
-    LanguageField.Parent := LanguageForm;
-    LanguageField.SetBounds(ScaleX(24), ScaleY(64), ScaleX(352), ScaleY(36));
-    LanguageField.OnClick := @OpenLanguageMenu;
-    LanguageField.TabStop := True;
-    LanguageField.TabOrder := 0;
-    SetWindowRgn(LanguageField.Handle,
-      CreateRoundRectRgn(0, 0, LanguageField.Width + 1, LanguageField.Height + 1,
-        ScaleX(12), ScaleY(12)), True);
-    if ActiveLanguage = 'chinesesimplified' then LanguageIndex := 0 else LanguageIndex := 1;
-    PendingLanguage := LanguageIndex;
-
-    LanguageMenu := TPanel.Create(LanguageForm);
-    LanguageMenu.Parent := LanguageForm;
-    LanguageMenu.SetBounds(ScaleX(24), ScaleY(108), ScaleX(352), ScaleY(84));
-    LanguageMenu.BevelOuter := bvNone;
-    LanguageMenu.Visible := False;
-    LanguageMenu.TabOrder := 1;
-    ChineseOption := TBitmapButton.Create(LanguageForm);
-    ChineseOption.Parent := LanguageMenu;
-    ChineseOption.SetBounds(0, 0, LanguageMenu.Width, ScaleY(38));
-    ChineseOption.OnClick := @ChooseLanguage;
-    ChineseOption.TabStop := True;
-    ChineseOption.TabOrder := 0;
-    EnglishOption := TBitmapButton.Create(LanguageForm);
-    EnglishOption.Parent := LanguageMenu;
-    EnglishOption.SetBounds(0, ScaleY(44), LanguageMenu.Width, ScaleY(38));
-    EnglishOption.OnClick := @ChooseLanguage;
-    EnglishOption.TabStop := True;
-    EnglishOption.TabOrder := 1;
-    RefreshLanguageChoice;
+    LanguageCombo := TNewComboBox.Create(LanguageForm);
+    LanguageCombo.Parent := LanguageForm;
+    LanguageCombo.Style := csOwnerDrawFixed;
+    LanguageCombo.SetBounds(ScaleX(24), ScaleY(64), ScaleX(352), ScaleY(36));
+    SendMessage(LanguageCombo.Handle, $0153, 0, ScaleY(30));
+    SendMessage(LanguageCombo.Handle, $0153, -1, ScaleY(30));
+    LanguageCombo.Items.Add('简体中文');
+    LanguageCombo.Items.Add('English');
+    LanguageCombo.DropDownCount := 2;
+    LanguageCombo.TabOrder := 0;
+    if ActiveLanguage = 'chinesesimplified' then LanguageCombo.ItemIndex := 0
+    else LanguageCombo.ItemIndex := 1;
+    LabelControl.FocusControl := LanguageCombo;
 
     ConfirmButton := TNewButton.Create(LanguageForm);
     ConfirmButton.Parent := LanguageForm;
     ConfirmButton.SetBounds(ScaleX(190), ScaleY(138), ScaleX(88), ScaleY(30));
     ConfirmButton.Caption := SetupMessage(msgButtonOK);
     ConfirmButton.ModalResult := mrOK;
-    { Enter on the language field selects an option rather than confirming. }
-    ConfirmButton.Default := False;
-    ConfirmButton.TabOrder := 2;
-
+    ConfirmButton.Default := True;
+    ConfirmButton.TabOrder := 1;
     CancelButton := TNewButton.Create(LanguageForm);
     CancelButton.Parent := LanguageForm;
     CancelButton.SetBounds(ScaleX(288), ScaleY(138), ScaleX(88), ScaleY(30));
     CancelButton.Caption := SetupMessage(msgButtonCancel);
     CancelButton.ModalResult := mrCancel;
     CancelButton.Cancel := True;
-    CancelButton.TabOrder := 3;
+    CancelButton.TabOrder := 2;
 
-    LanguageForm.KeyPreview := True;
-    LanguageForm.OnKeyDown := @LanguageKeyDown;
+    LanguageDrawCallback := CreateCallback(@LanguageDrawProc);
+    LanguageForm.OnShow := @UpdateLanguageDrawing;
+    LanguageForm.OnResize := @UpdateLanguageDrawing;
     LanguageForm.CenterOnShow := True;
-    LanguageForm.ActiveControl := LanguageField;
+    LanguageForm.ActiveControl := LanguageCombo;
     Result := LanguageForm.ShowModal = mrOK;
     if not Result then Exit;
-    if LanguageIndex = 0 then ChosenLanguage := 'chinesesimplified'
+    if LanguageCombo.ItemIndex = 0 then ChosenLanguage := 'chinesesimplified'
     else ChosenLanguage := 'english';
     if ChosenLanguage <> ActiveLanguage then begin
-      { Inno fixes its message language before InitializeSetup. Relaunch only
-        when the user switches language. ParamStr omits internal loader flags. }
       Arguments := '';
       for I := 1 to ParamCount do
         Arguments := Arguments + ' ' + QuoteSetupArgument(ParamStr(I));
-      { Wait for this instance to exit before opening the selected language. }
       RelaunchCommand := 'Wait-Process -Id ' + IntToStr(GetCurrentProcessId) +
         ' -ErrorAction SilentlyContinue; Start-Process -FilePath ' +
         QuotePowerShellValue(ExpandConstant('{srcexe}')) + ' -ArgumentList ' +
@@ -353,6 +320,9 @@ begin
       Result := False;
     end;
   finally
+    if LanguageDrawCallback <> 0 then
+      RemoveWindowSubclass(LanguageForm.Handle, LanguageDrawCallback, 1);
+    LanguageDrawCallback := 0;
     LanguageForm.Free;
   end;
 end;
