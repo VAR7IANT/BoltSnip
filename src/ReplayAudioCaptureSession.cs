@@ -854,6 +854,9 @@ namespace BoltSnip
             long intervalTicks = Math.Max(1, System.Diagnostics.Stopwatch.Frequency / 100);
             long nextEndpointCheckTicks = System.Diagnostics.Stopwatch.GetTimestamp() + System.Diagnostics.Stopwatch.Frequency;
             long silenceDeadline = System.Diagnostics.Stopwatch.GetTimestamp() + intervalTicks * 2;
+            // A two-input mixer must receive both streams on continuous sample clocks.
+            ReplayAudioTimeline timeline = (_isMicrophone || _microphone != null)
+                ? new ReplayAudioTimeline(format.SampleRate) : null;
             int silenceRemainder = 0;
             byte[] source = new byte[Math.Max(4096, format.SampleRate * format.Channels * (format.BitsPerSample / 8) / 10)];
             byte[] packed24 = format.RequiresPacked24Conversion
@@ -915,11 +918,34 @@ namespace BoltSnip
                                 frames -= skipped;
                                 if (data != IntPtr.Zero) data = IntPtr.Add(data, checked((int)skipped * format.Channels * (format.BitsPerSample / 8)));
                             }
-                            if ((flags & AudioClientBufferFlagSilent) != 0)
+                            if (timeline != null && qpcPosition != 0 && (flags & 0x4) == 0 && frames > 0)
+                            {
+                                // Skip an overlapping packet prefix if that time was already supplied as silence.
+                                long skippedAtStartup = packetFrames - frames;
+                                long packetQpc = checked((long)qpcPosition +
+                                    skippedAtStartup * 10000000L / format.SampleRate);
+                                long writtenFrames = Interlocked.Read(ref _bytesWritten) / format.OutputBytesPerFrame;
+                                long startFrame = timeline.GetPacketStartFrame(packetQpc, writtenFrames);
+                                int deadZoneFrames = format.SampleRate / 100;
+                                long missingFrames = timeline.GetMissingFrames(startFrame, writtenFrames, deadZoneFrames);
+                                uint chunkFrames = (uint)Math.Max(1, format.SampleRate / 100);
+                                while (missingFrames > 0 && !_stopEvent.WaitOne(0))
+                                {
+                                    uint count = (uint)Math.Min(missingFrames, chunkFrames);
+                                    WriteSilence(format, count, silence);
+                                    missingFrames -= count;
+                                }
+                                long overlapFrames = timeline.GetOverlapFrames(startFrame, writtenFrames, deadZoneFrames);
+                                uint overlap = (uint)Math.Min(frames, overlapFrames);
+                                frames -= overlap;
+                                if (data != IntPtr.Zero && overlap > 0)
+                                    data = IntPtr.Add(data, checked((int)overlap * format.Channels * (format.BitsPerSample / 8)));
+                            }
+                            if (frames > 0 && (flags & AudioClientBufferFlagSilent) != 0)
                             {
                                 WriteSilence(format, frames, silence);
                             }
-                            else
+                            else if (frames > 0)
                             {
                                 WriteAudioPacket(format, data, frames, source, packed24);
                             }
@@ -936,12 +962,23 @@ namespace BoltSnip
                 else
                 {
                     long silenceNow = System.Diagnostics.Stopwatch.GetTimestamp();
-                    int frames = GetDueSilenceFrameCount(
-                        silenceNow,
-                        intervalTicks,
-                        ref silenceDeadline,
-                        format.SampleRate,
-                        ref silenceRemainder);
+                    int frames;
+                    if (timeline != null && timeline.IsAnchored)
+                    {
+                        long qpc = (long)(silenceNow * (10000000.0 / Stopwatch.Frequency));
+                        long writtenFrames = Interlocked.Read(ref _bytesWritten) / format.OutputBytesPerFrame;
+                        long dueFrames = timeline.GetDueSilenceFrames(qpc, writtenFrames, format.SampleRate / 50);
+                        frames = (int)Math.Min(dueFrames, Math.Max(1, format.SampleRate / 10));
+                    }
+                    else
+                    {
+                        frames = GetDueSilenceFrameCount(
+                            silenceNow,
+                            intervalTicks,
+                            ref silenceDeadline,
+                            format.SampleRate,
+                            ref silenceRemainder);
+                    }
                     if (frames > 0)
                     {
                         WriteSilence(format, (uint)frames, silence);

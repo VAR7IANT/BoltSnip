@@ -274,6 +274,8 @@ namespace BoltSnip
             StringBuilder arguments = new StringBuilder();
             arguments.Append("-hide_banner -loglevel warning -nostats -y ");
             bool includeAudio = audioFormat != null && !string.IsNullOrWhiteSpace(audioInputArguments);
+            // Bound capture buffering so short encoder/audio stalls do not immediately stall desktop polling.
+            arguments.Append("-thread_queue_size 16 ");
             arguments.Append(videoInputArguments);
             if (includeAudio)
             {
@@ -290,7 +292,7 @@ namespace BoltSnip
             {
                 arguments.Append("-an ");
             }
-            arguments.Append("-c:v h264_nvenc -preset p4 -tune ll -rc vbr -cq 20 -b:v 0 ");
+            arguments.Append("-c:v h264_nvenc -preset p2 -tune ll -rc vbr -cq 16 -b:v 0 ");
             if (includeAudio)
             {
                 arguments.Append("-c:a aac -b:a 192k -ar 48000 -ac 2 ");
