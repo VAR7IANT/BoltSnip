@@ -43,6 +43,7 @@ namespace BoltSnip
                 OpenLicenseSettings,
                 ExitApplication);
             _trayPopup.OpenAudioSettings = OpenAudioSettings;
+            _trayPopup.ToggleAutoStartReplay = ToggleAutoStartReplay;
             _trayPopup.UpdatePresentation(
                 ReleaseIdentity.Version,
                 _hotkey.CaptureShortcutText,
@@ -62,6 +63,12 @@ namespace BoltSnip
             _replayUiTimer.Interval = 350;
             _replayUiTimer.Tick += ReplayUiTimerTick;
             _replayUiTimer.Start();
+
+            if (_settings.AutoStartReplay)
+            {
+                _replayManager.Start();
+                UpdateReplayUi();
+            }
 
             List<string> unavailableHotkeys = new List<string>();
             if (!_hotkey.CaptureIsRegistered)
@@ -173,6 +180,26 @@ namespace BoltSnip
                 _hotkey.SetCallbacksSuppressed(false);
             }
         }
+        private void ToggleAutoStartReplay()
+        {
+            bool previous = _settings.AutoStartReplay;
+            _settings.AutoStartReplay = !previous;
+            try
+            {
+                _settings.Save();
+            }
+            catch (Exception exception)
+            {
+                _settings.AutoStartReplay = previous;
+                MessageBox.Show(
+                    "无法保存自动回放设置：" + exception.Message,
+                    "设置失败",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            UpdatePopupPresentation();
+        }
+
         private void ToggleStartup()
         {
             bool enable = !StartupRegistration.IsEnabledForCurrentExecutable();
@@ -201,6 +228,7 @@ namespace BoltSnip
 
         private void UpdatePopupPresentation()
         {
+            _trayPopup.UpdateAutoStartReplay(_settings.AutoStartReplay);
             _trayPopup.UpdatePresentation(
                 ReleaseIdentity.Version,
                 _hotkey.CaptureShortcutText,

@@ -40,6 +40,7 @@ namespace BoltSnip
         internal HotkeyGesture ReplaySaveHotkey { get; set; }
 
         internal string SaveDirectory { get; set; }
+        internal bool AutoStartReplay { get; set; }
         internal bool RecordMicrophone { get; set; }
         internal string MicrophoneDeviceId { get; set; }
         internal int MicrophoneVolume { get; set; }
@@ -111,6 +112,14 @@ namespace BoltSnip
                     settings.SaveDirectory = saveDirectory;
                 }
 
+                string autoStartReplayValue;
+                bool autoStartReplay;
+                if (values.TryGetValue("AutoStartReplay", out autoStartReplayValue) &&
+                    bool.TryParse(autoStartReplayValue, out autoStartReplay))
+                {
+                    settings.AutoStartReplay = autoStartReplay;
+                }
+
                 string microphoneValue;
                 bool microphoneEnabled;
                 int microphoneVolume;
@@ -156,6 +165,7 @@ namespace BoltSnip
                 "ReplaySaveModifiers=" + ReplaySaveHotkey.Modifiers.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
                 "ReplaySaveKey=" + ((int)ReplaySaveHotkey.Key).ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
                 "SaveDirectory=" + saveDirectory + Environment.NewLine +
+                "AutoStartReplay=" + AutoStartReplay.ToString() + Environment.NewLine +
                 "RecordMicrophone=" + RecordMicrophone.ToString() + Environment.NewLine +
                 "MicrophoneDeviceId=" + (MicrophoneDeviceId ?? string.Empty).Replace("\r", "").Replace("\n", "") + Environment.NewLine +
                 "MicrophoneVolume=" + Math.Max(0, Math.Min(200, MicrophoneVolume)).ToString(CultureInfo.InvariantCulture) + Environment.NewLine;

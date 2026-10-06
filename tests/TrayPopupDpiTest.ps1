@@ -34,10 +34,10 @@ for ($index = 0; $index -lt $workAreas.Count; $index++) {
 }
 
 $expected = @{
-    96 = @(336, 430)
-    120 = @(420, 538)
-    144 = @(504, 645)
-    192 = @(672, 860)
+    96 = @(336, 498)
+    120 = @(420, 623)
+    144 = @(504, 747)
+    192 = @(672, 996)
 }
 $scaledSizesCorrect = $true
 foreach ($dpi in $expected.Keys) {

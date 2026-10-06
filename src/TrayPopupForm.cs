@@ -16,6 +16,7 @@ namespace BoltSnip
         SaveLocation,
         AudioSettings,
         Startup,
+        AutoStartReplay,
         License,
         Exit
     }
@@ -23,8 +24,8 @@ namespace BoltSnip
     internal sealed class TrayPopupForm : Form
     {
         internal const int LogicalWidth = 336;
-        internal const int LogicalHeight = 464;
-        internal const int LogicalHeightWithLicense = 498;
+        internal const int LogicalHeight = 498;
+        internal const int LogicalHeightWithLicense = 532;
         internal const int ReplayTitleLogicalWidth = 158;
 
         internal static readonly Color BackgroundColor = Color.FromArgb(250, 251, 252);
@@ -47,6 +48,8 @@ namespace BoltSnip
         private readonly Action _saveReplay;
         private readonly Action _openHotkeys;
         internal Action OpenAudioSettings { get; set; }
+        internal Action ToggleAutoStartReplay { get; set; }
+        private bool _autoStartReplay;
         private ReplayAudioState _microphoneState;
         private readonly Action _openSaveLocation;
         private readonly Action _toggleStartup;
@@ -118,6 +121,13 @@ namespace BoltSnip
                 true);
             ClientSize = GetLogicalSize(false);
             ApplyDpi(DeviceDpi);
+        }
+
+        internal void UpdateAutoStartReplay(bool enabled)
+        {
+            if (_autoStartReplay == enabled) return;
+            _autoStartReplay = enabled;
+            Invalidate(ScaleRectangle(GetLogicalBounds(TrayPopupAction.AutoStartReplay, _licenseEnabled)));
         }
 
         internal bool IsReplaySaving
@@ -233,12 +243,14 @@ namespace BoltSnip
                     return new Rectangle(14, 336, 308, 32);
                 case TrayPopupAction.Startup:
                     return new Rectangle(14, 370, 308, 32);
+                case TrayPopupAction.AutoStartReplay:
+                    return new Rectangle(14, 404, 308, 32);
                 case TrayPopupAction.License:
-                    return licenseEnabled ? new Rectangle(14, 404, 308, 32) : Rectangle.Empty;
+                    return licenseEnabled ? new Rectangle(14, 438, 308, 32) : Rectangle.Empty;
                 case TrayPopupAction.Exit:
                     return licenseEnabled
-                        ? new Rectangle(14, 452, 308, 32)
-                        : new Rectangle(14, 418, 308, 32);
+                        ? new Rectangle(14, 486, 308, 32)
+                        : new Rectangle(14, 452, 308, 32);
                 default:
                     return Rectangle.Empty;
             }
@@ -638,6 +650,7 @@ namespace BoltSnip
             DrawSettingRow(graphics, TrayPopupAction.SaveLocation, "保存位置", DrawFolderIcon);
             DrawSettingRow(graphics, TrayPopupAction.AudioSettings, "录制声音", DrawMicrophoneIcon);
             DrawSettingRow(graphics, TrayPopupAction.Startup, "开机启动", DrawPowerIcon);
+            DrawSettingRow(graphics, TrayPopupAction.AutoStartReplay, "启动后自动开启回放", DrawPowerIcon);
             if (_licenseEnabled)
             {
                 DrawSettingRow(graphics, TrayPopupAction.License, "授权管理", DrawKeyIcon);
@@ -651,10 +664,10 @@ namespace BoltSnip
             drawIcon(graphics, Scale(24), bounds.Top + (bounds.Height - Scale(16)) / 2, Scale(16));
             Rectangle label = new Rectangle(Scale(51), bounds.Top, Scale(206), bounds.Height);
             DrawText(graphics, text, _bodyFont, TextColor, label, StringAlignment.Near);
-            if (action == TrayPopupAction.Startup)
+            if (action == TrayPopupAction.Startup || action == TrayPopupAction.AutoStartReplay)
             {
                 Rectangle toggle = ScaleRectangle(new Rectangle(276, GetLogicalBounds(action, _licenseEnabled).Top + 8, 32, 16));
-                DrawToggle(graphics, toggle, _startupEnabled, false, _hoverAction == action, _pressedAction == action);
+                DrawToggle(graphics, toggle, action == TrayPopupAction.Startup ? _startupEnabled : _autoStartReplay, false, _hoverAction == action, _pressedAction == action);
             }
         }
 
@@ -885,6 +898,10 @@ namespace BoltSnip
             {
                 return TrayPopupAction.Startup;
             }
+            if (GetLogicalBounds(TrayPopupAction.AutoStartReplay, _licenseEnabled).Contains(logicalPoint))
+            {
+                return TrayPopupAction.AutoStartReplay;
+            }
             if (GetLogicalBounds(TrayPopupAction.License, _licenseEnabled).Contains(logicalPoint))
             {
                 return TrayPopupAction.License;
@@ -924,6 +941,9 @@ namespace BoltSnip
                     break;
                 case TrayPopupAction.Startup:
                     if (_toggleStartup != null) _toggleStartup();
+                    break;
+                case TrayPopupAction.AutoStartReplay:
+                    if (ToggleAutoStartReplay != null) ToggleAutoStartReplay();
                     break;
                 case TrayPopupAction.License:
                     Hide();
