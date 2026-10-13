@@ -2,20 +2,20 @@
 
 > A lightweight, low-latency screenshot tool for Windows — invoke, select, copy.
 
-BoltSnip 是一款面向 Windows 的轻量截图工具，专注于快速唤起、流畅框选和尽可能短的截图操作路径。
+BoltSnip is a lightweight screenshot utility for Windows, designed for instant activation, smooth region selection, and a fast, streamlined capture workflow.
 
 ## Features
 
-- 全局快捷键快速唤起，默认 `Alt+A`
-- 多显示器与 Per-Monitor V2 高 DPI 支持
-- 鼠标悬停自动吸附窗口
-- 10× 像素放大镜、中心准星、坐标与颜色值
-- 自由拖动框选与像素级微调
-- 左键复制、右键快速保存
-- PNG 无损输出，支持 JPEG 保存
-- 托盘快捷键、保存目录与开机启动设置
-- 单文件应用，无需额外第三方运行依赖
-- 截图处理在本地完成
+- Quick access via a global hotkey (default: `Alt+A`)
+- Multiple-monitor and Per-Monitor V2 high-DPI support
+- Automatic window snapping on hover
+- 10× pixel magnifier, center crosshair, coordinates, and color values
+- Freeform region selection with pixel-level adjustments
+- Left-click to copy; right-click to save quickly
+- Lossless PNG output and optional JPEG saving
+- Tray settings for hotkeys, save directory, and launch at startup
+- Self-contained application without additional third-party runtime dependencies
+- All screenshots are processed locally
 
 ## Download
 
@@ -31,33 +31,33 @@ Release assets use names such as:
 
 ## Usage
 
-1. 安装并启动 BoltSnip。
-2. 按 `Alt+A` 开始截图。
-3. 移动鼠标选择窗口，或拖动鼠标自由框选。
-4. 使用方向键进行像素级微调。
-5. 左键复制到剪贴板，右键快速保存。
-6. `Shift + 右键` 或 `Ctrl+S` 打开另存为。
-7. 在系统托盘中调整快捷键、保存目录和开机启动设置。
+1. Install and launch BoltSnip.
+2. Press `Alt+A` to start capturing.
+3. Hover over a window to select it, or drag to select a custom region.
+4. Use the arrow keys for pixel-level adjustments.
+5. Left-click to copy to the clipboard or right-click to save quickly.
+6. Press `Shift + right-click` or `Ctrl+S` to open Save As.
+7. Use the system tray to configure the hotkey, save directory, and startup behavior.
 
 ## Install
 
-运行从 Releases 下载的 Windows x64 安装包即可。BoltSnip 默认按当前用户安装，不需要管理员权限。
+Run the Windows x64 installer downloaded from Releases. BoltSnip installs for the current user by default and does not require administrator privileges.
 
-卸载时会移除程序文件、快捷方式和开机启动项；个人快捷键与保存目录设置会保留，方便后续重新安装。
+Uninstalling removes program files, shortcuts, and startup entries, while keeping personal hotkey and save-directory settings for future reinstalls.
 
 ## Verification
 
-正式发布时，Release 页面会同时提供安装包的 SHA-256 校验值或校验文件。建议下载后进行完整性校验。
+Official releases provide either the installer's SHA-256 checksum or a checksum file. Verify the downloaded installer before running it.
 
 ## Source Code
 
 BoltSnip is currently distributed as closed-source software.
 
-The source code, build scripts, internal tests, licensing implementation and private development files are **not included** in this repository or in release download packages.
+The source code, build scripts, internal tests, licensing implementation, and private development files are **not included** in this repository or release download packages.
 
 ## Issues
 
-如果遇到 Bug 或希望提出功能建议，可以直接使用本仓库的 GitHub Issues。
+Use this repository's GitHub Issues to report bugs or request features.
 
 ## System Requirements
 
